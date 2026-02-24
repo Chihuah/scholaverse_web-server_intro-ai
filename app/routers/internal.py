@@ -11,8 +11,19 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models.card import Card
+
+
+def _image_path_to_url(image_path: str | None) -> str | None:
+    """Convert ai-worker image_path (e.g. /students/123/cards/card_042.png)
+    to a proxy URL via ai-worker's /api/images/ endpoint."""
+    if not image_path:
+        return None
+    stripped = image_path.lstrip("/")
+    base = settings.AI_WORKER_BASE_URL.rstrip("/")
+    return f"{base}/api/images/{stripped}"
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +61,8 @@ async def generation_callback(
 
     if body.status == "completed":
         card.status = "completed"
-        card.image_url = body.image_path
-        card.thumbnail_url = body.thumbnail_path
+        card.image_url = _image_path_to_url(body.image_path)
+        card.thumbnail_url = _image_path_to_url(body.thumbnail_path)
         if body.generated_at:
             try:
                 card.generated_at = datetime.fromisoformat(body.generated_at)

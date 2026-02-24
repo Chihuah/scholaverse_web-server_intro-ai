@@ -23,7 +23,7 @@ class Settings:
 
     # External VM services
     AI_WORKER_BASE_URL: str = os.getenv(
-        "AI_WORKER_BASE_URL", "http://192.168.50.110"
+        "AI_WORKER_BASE_URL", "http://192.168.50.110:8000"
     )
     DB_STORAGE_BASE_URL: str = os.getenv(
         "DB_STORAGE_BASE_URL", "http://192.168.50.112"
