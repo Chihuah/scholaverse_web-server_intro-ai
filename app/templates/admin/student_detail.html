@@ -1,172 +1,230 @@
 {% extends "base.html" %}
 
-{% block title %}{{ student.name }} — Scholaverse{% endblock %}
+{% block title %}{{ student.name }}{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="font-pixel text-rpg-gold text-sm sm:text-base">STUDENT DETAIL</h1>
-    <a href="/admin/students" class="pixel-btn-sm">返回列表</a>
+<!-- Header -->
+<div class="flex flex-col gap-3 w-full shrink-0 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex items-center gap-3">
+    <i data-lucide="user" class="w-6 h-6 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-xl font-black tracking-widest text-[var(--rpg-gold)]">{{ student.name }}</h1>
+    {% if student.role in ('teacher', 'admin') %}
+    <span class="inline-block rounded px-2 py-0.5 bg-[var(--rpg-gold-dark)]/50 font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]">{{ student.role }}</span>
+    {% endif %}
   </div>
+  <a href="/admin/students"
+     class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-text-secondary)]
+            hover:text-[var(--rpg-gold)] transition-colors">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+    返回列表
+  </a>
+</div>
 
-  <!-- Student Info (Editable) -->
-  <div class="pixel-panel p-4 mb-6">
-    <h2 class="font-pixel text-rpg-gold text-xs mb-4">STUDENT INFO</h2>
-    <form id="student-form" onsubmit="return false;">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-        <!-- Email (read-only) -->
-        <div>
-          <label class="text-rpg-text-dim text-xs block mb-1">Email</label>
-          <div class="bg-rpg-bg-deep border-2 border-rpg-brass/50 text-rpg-text-dim text-sm px-3 py-2">
-            {{ student.email }}
-          </div>
-        </div>
-        <!-- Name -->
-        <div>
-          <label class="text-rpg-text-dim text-xs block mb-1" for="field-name">姓名</label>
-          <input id="field-name" name="name" type="text" value="{{ student.name }}"
-            class="w-full bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-3 py-2 focus:border-rpg-gold focus:outline-none">
-        </div>
-        <!-- Nickname -->
-        <div>
-          <label class="text-rpg-text-dim text-xs block mb-1" for="field-nickname">暱稱</label>
-          <input id="field-nickname" name="nickname" type="text" value="{{ student.nickname or '' }}"
-            placeholder="角色暱稱（英數字，最多18字）" maxlength="18"
-            class="w-full bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-3 py-2 focus:border-rpg-gold focus:outline-none">
-        </div>
-        <!-- Student ID -->
-        <div>
-          <label class="text-rpg-text-dim text-xs block mb-1" for="field-student-id">學號</label>
-          <input id="field-student-id" name="student_id" type="text" value="{{ student.student_id or '' }}"
-            class="w-full bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-3 py-2 focus:border-rpg-gold focus:outline-none">
-        </div>
-        <!-- Role -->
-        <div>
-          <label class="text-rpg-text-dim text-xs block mb-1" for="field-role">角色</label>
-          <select id="field-role" name="role"
-            class="w-full bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-3 py-2 focus:border-rpg-gold focus:outline-none">
-            <option value="student" {{ 'selected' if student.role == 'student' }}>student</option>
-            <option value="teacher" {{ 'selected' if student.role == 'teacher' }}>teacher</option>
-            <option value="admin" {{ 'selected' if student.role == 'admin' }}>admin</option>
-          </select>
-        </div>
-        <!-- Tokens -->
-        <div>
-          <label class="text-rpg-text-dim text-xs block mb-1" for="field-tokens">代幣</label>
-          <input id="field-tokens" name="tokens" type="number" value="{{ student.tokens }}" min="0"
-            class="w-full bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-3 py-2 focus:border-rpg-gold focus:outline-none">
+<!-- Student Info (Editable) -->
+<div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] p-5 w-full shrink-0">
+  <div class="flex items-center gap-2 mb-4">
+    <i data-lucide="id-card" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+    <span class="font-tc text-sm font-bold text-[var(--rpg-text-primary)]">學生資料</span>
+  </div>
+  <form id="student-form" onsubmit="return false;">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <!-- Email (read-only) -->
+      <div>
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1">Email</label>
+        <div class="rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                    font-tc text-xs text-[var(--rpg-text-secondary)] opacity-60">
+          {{ student.email }}
         </div>
       </div>
-      <div class="mt-4 flex justify-end">
-        <button type="button" onclick="saveStudent()" class="pixel-btn pixel-btn-gold">儲存變更</button>
+      <!-- Name -->
+      <div>
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1" for="field-name">姓名</label>
+        <input id="field-name" name="name" type="text" value="{{ student.name }}"
+               class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                      font-tc text-xs text-[var(--rpg-text-primary)] focus:outline-none focus:border-[var(--rpg-gold)]">
       </div>
-    </form>
-    <p class="text-rpg-text-dim text-xs mt-3">
-      註冊於 {{ student.created_at.strftime('%Y-%m-%d') if student.created_at else '—' }}
-    </p>
-  </div>
-
-  <!-- Learning Records (Editable) -->
-  <div class="pixel-panel p-4 mb-6">
-    <h2 class="font-pixel text-rpg-gold text-xs mb-4">LEARNING RECORDS</h2>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b-2 border-rpg-brass text-rpg-text-dim text-xs">
-            <th class="text-left py-2 px-2">單元</th>
-            <th class="text-right py-2 px-2">預習</th>
-            <th class="text-right py-2 px-2">測驗</th>
-            <th class="text-right py-2 px-2">作業</th>
-            <th class="text-right py-2 px-2">完成率</th>
-            <th class="text-center py-2 px-2"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for unit in units %}
-          {% set rec = records_by_unit.get(unit.id) %}
-          <tr class="border-b border-rpg-brass/30" id="record-row-{{ unit.id }}">
-            <td class="py-2 px-2 whitespace-nowrap">
-              <span class="text-rpg-gold">{{ unit.code }}</span>
-              <span class="text-rpg-text-dim ml-1">{{ unit.name }}</span>
-            </td>
-            <td class="text-right py-2 px-1">
-              <input type="number" step="0.1" min="0" max="100"
-                id="preview-{{ unit.id }}" value="{{ rec.preview_score if rec and rec.preview_score is not none else '' }}"
-                class="w-16 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-2 py-1 text-right focus:border-rpg-gold focus:outline-none">
-            </td>
-            <td class="text-right py-2 px-1">
-              <input type="number" step="0.1" min="0" max="100"
-                id="quiz-{{ unit.id }}" value="{{ rec.quiz_score if rec and rec.quiz_score is not none else '' }}"
-                class="w-16 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-2 py-1 text-right focus:border-rpg-gold focus:outline-none">
-            </td>
-            <td class="text-right py-2 px-1">
-              <input type="number" step="0.1" min="0" max="100"
-                id="homework-{{ unit.id }}" value="{{ rec.homework_score if rec and rec.homework_score is not none else '' }}"
-                class="w-16 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-2 py-1 text-right focus:border-rpg-gold focus:outline-none">
-            </td>
-            <td class="text-right py-2 px-1">
-              <input type="number" step="0.1" min="0" max="100"
-                id="completion-{{ unit.id }}" value="{{ rec.completion_rate if rec and rec.completion_rate is not none else '' }}"
-                class="w-16 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-2 py-1 text-right focus:border-rpg-gold focus:outline-none">
-            </td>
-            <td class="text-center py-2 px-1">
-              <button type="button" onclick="saveRecord({{ unit.id }})" class="pixel-btn-sm">儲存</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <!-- Nickname -->
+      <div>
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1" for="field-nickname">暱稱</label>
+        <input id="field-nickname" name="nickname" type="text" value="{{ student.nickname or '' }}"
+               placeholder="角色暱稱（英數字，最多18字）" maxlength="18"
+               class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                      font-tc text-xs text-[var(--rpg-text-primary)] placeholder:text-[var(--rpg-text-secondary)]
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
+      </div>
+      <!-- Student ID -->
+      <div>
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1" for="field-student-id">學號</label>
+        <input id="field-student-id" name="student_id" type="text" value="{{ student.student_id or '' }}"
+               class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                      font-tc text-xs text-[var(--rpg-text-primary)] focus:outline-none focus:border-[var(--rpg-gold)]">
+      </div>
+      <!-- Role -->
+      <div>
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1" for="field-role">角色</label>
+        <select id="field-role" name="role"
+                class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                       font-tc text-xs text-[var(--rpg-text-primary)] focus:outline-none focus:border-[var(--rpg-gold)]">
+          <option value="student" {{ 'selected' if student.role == 'student' }}>student</option>
+          <option value="teacher" {{ 'selected' if student.role == 'teacher' }}>teacher</option>
+          <option value="admin" {{ 'selected' if student.role == 'admin' }}>admin</option>
+        </select>
+      </div>
+      <!-- Tokens -->
+      <div>
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1" for="field-tokens">代幣</label>
+        <input id="field-tokens" name="tokens" type="number" value="{{ student.tokens }}" min="0"
+               class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                      font-tc text-xs text-[var(--rpg-text-primary)] focus:outline-none focus:border-[var(--rpg-gold)]">
+      </div>
     </div>
-  </div>
+    <div class="mt-4 flex items-center justify-between">
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
+        註冊於 {{ student.created_at.strftime('%Y-%m-%d') if student.created_at else '—' }}
+      </span>
+      <button type="button" onclick="saveStudent()"
+              class="flex items-center gap-2 rounded px-4 py-2
+                     bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)]
+                     font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]
+                     transition-opacity hover:opacity-90">
+        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+        儲存變更
+      </button>
+    </div>
+  </form>
+</div>
 
-  <!-- Cards (Read-only) -->
-  <div class="pixel-panel p-4 mb-6">
-    <h2 class="font-pixel text-rpg-gold text-xs mb-4">CARDS ({{ cards | length }})</h2>
-    {% if cards %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {% for card in cards %}
-      <div class="bg-rpg-bg border border-rpg-brass p-3 text-sm">
-        <div class="flex justify-between items-start">
-          <span class="text-rpg-gold">#{{ card.id }}</span>
-          <span class="text-xs px-2 py-0.5 border
-            {% if card.status == 'completed' %}border-green-600 text-green-400
-            {% elif card.status == 'generating' %}border-yellow-600 text-yellow-400
-            {% elif card.status == 'failed' %}border-red-600 text-red-400
-            {% else %}border-rpg-brass text-rpg-text-dim{% endif %}">
-            {{ card.status }}
-          </span>
-        </div>
-        <p class="text-rpg-text-dim text-xs mt-1">
-          {{ card.created_at.strftime('%Y-%m-%d %H:%M') if card.created_at else '—' }}
-          {% if card.is_latest %}<span class="text-rpg-gold ml-1">★ latest</span>{% endif %}
-        </p>
-        {% if card.border_style %}
-        <p class="text-xs mt-1">Border: {{ card.border_style }} ・ Lv.{{ card.level_number or '?' }}</p>
-        {% endif %}
+<!-- Learning Records (Editable) -->
+<div class="flex flex-col gap-3 w-full shrink-0">
+  <div class="flex items-center gap-2">
+    <i data-lucide="scroll-text" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+    <span class="font-tc text-sm font-bold text-[var(--rpg-text-primary)]">學習記錄</span>
+  </div>
+  <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] overflow-auto scrollbar-hide">
+    <div class="min-w-[560px]">
+      <!-- Header -->
+      <div class="flex items-center gap-2 px-5 py-3 bg-[var(--rpg-bg-card)]
+                  border-b border-[var(--rpg-gold-dark)] sticky top-0 z-10">
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">單元</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">預習</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">測驗</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">作業</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">完成率</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-14 text-center"></span>
+      </div>
+      <!-- Rows -->
+      {% for unit in units %}
+      {% set rec = records_by_unit.get(unit.id) %}
+      <div id="record-row-{{ unit.id }}"
+           class="flex items-center gap-2 px-5 py-2.5 border-b border-[var(--rpg-bg-input)]
+                  {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
+        <span class="font-tc text-[10px] flex-1 whitespace-nowrap">
+          <span class="text-[var(--rpg-gold)] font-bold">{{ unit.code }}</span>
+          <span class="text-[var(--rpg-text-secondary)] ml-1">{{ unit.name }}</span>
+        </span>
+        <input type="number" step="0.1" min="0" max="100"
+               id="preview-{{ unit.id }}" value="{{ rec.preview_score if rec and rec.preview_score is not none else '' }}"
+               class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
+        <input type="number" step="0.1" min="0" max="100"
+               id="quiz-{{ unit.id }}" value="{{ rec.quiz_score if rec and rec.quiz_score is not none else '' }}"
+               class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
+        <input type="number" step="0.1" min="0" max="100"
+               id="homework-{{ unit.id }}" value="{{ rec.homework_score if rec and rec.homework_score is not none else '' }}"
+               class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
+        <input type="number" step="0.1" min="0" max="100"
+               id="completion-{{ unit.id }}" value="{{ rec.completion_rate if rec and rec.completion_rate is not none else '' }}"
+               class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
+        <button type="button" onclick="saveRecord({{ unit.id }})"
+                class="w-14 rounded px-2 py-1.5 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                       font-tc text-[10px] font-bold text-[var(--rpg-gold)]
+                       hover:border-[var(--rpg-gold)] transition-colors text-center">
+          儲存
+        </button>
       </div>
       {% endfor %}
     </div>
-    {% else %}
-    <p class="text-rpg-text-dim text-sm">尚無卡牌。</p>
-    {% endif %}
-  </div>
-
-  <!-- Unbind Section -->
-  <div class="pixel-panel p-4 mb-6" style="border-color: #ef4444; box-shadow: -4px 0 0 0 #ef4444, 4px 0 0 0 #ef4444, 0 -4px 0 0 #ef4444, 0 4px 0 0 #ef4444, -8px 0 0 0 #991b1b, 8px 0 0 0 #991b1b, 0 -8px 0 0 #991b1b, 0 8px 0 0 #991b1b, inset 0 0 0 2px rgba(0,0,0,0.4), inset 0 0 12px rgba(0,0,0,0.3);">
-    <h2 class="font-pixel text-red-400 text-xs mb-3">DANGER ZONE</h2>
-    <p class="text-rpg-text-dim text-sm mb-4">
-      解除此帳號的 Email 綁定後，該 Gmail 帳號下次登入將需要重新自助註冊。學生的學習記錄與卡牌資料將會保留。
-    </p>
-    <button type="button" onclick="unbindStudent()"
-      class="bg-red-900/30 border-2 border-red-500 text-red-400 px-4 py-2 hover:bg-red-900/50 cursor-pointer text-sm font-semibold">
-      解除綁定
-    </button>
   </div>
 </div>
 
+<!-- Cards (Read-only) -->
+<div class="flex flex-col gap-3 w-full shrink-0">
+  <div class="flex items-center gap-2">
+    <i data-lucide="image" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+    <span class="font-tc text-sm font-bold text-[var(--rpg-text-primary)]">卡牌（{{ cards | length }}）</span>
+  </div>
+  {% if cards %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    {% for card in cards %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+      <div class="flex justify-between items-start mb-2">
+        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)]">#{{ card.id }}</span>
+        <span class="inline-block rounded px-1.5 py-0.5 font-tc text-[10px] font-bold
+          {% if card.status == 'completed' %}bg-[var(--rpg-success)]/20 text-[var(--rpg-success)]
+          {% elif card.status == 'generating' %}bg-[var(--rpg-warning)]/20 text-[var(--rpg-warning)]
+          {% elif card.status == 'failed' %}bg-[var(--rpg-danger)]/20 text-[var(--rpg-danger)]
+          {% else %}bg-[var(--rpg-bg-card)] text-[var(--rpg-text-secondary)]{% endif %}">
+          {{ card.status }}
+        </span>
+      </div>
+      <p class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
+        {{ card.created_at.strftime('%Y-%m-%d %H:%M') if card.created_at else '—' }}
+        {% if card.is_latest %}<span class="text-[var(--rpg-gold)] ml-1">★ latest</span>{% endif %}
+      </p>
+      {% if card.border_style %}
+      <p class="font-tc text-[10px] text-[var(--rpg-text-secondary)] mt-1">Border: {{ card.border_style }} ・ Lv.{{ card.level_number or '?' }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="rounded px-5 py-6 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] text-center">
+    <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">尚無卡牌。</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Danger Zone -->
+<div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-danger)]/40 p-5 w-full shrink-0">
+  <div class="flex items-center gap-2 mb-3">
+    <i data-lucide="alert-triangle" class="w-4 h-4 text-[var(--rpg-danger)]"></i>
+    <span class="font-tc text-sm font-bold text-[var(--rpg-danger)]">危險區域</span>
+  </div>
+  <p class="font-tc text-xs text-[var(--rpg-text-secondary)] mb-4">
+    解除此帳號的 Email 綁定後，該 Gmail 帳號下次登入將需要重新自助註冊。學生的學習記錄與卡牌資料將會保留。
+  </p>
+  <button type="button" onclick="unbindStudent()"
+          class="flex items-center gap-2 rounded px-4 py-2
+                 bg-[var(--rpg-danger)]/20 border-2 border-[var(--rpg-danger)]/60
+                 font-tc text-[10px] font-bold text-[var(--rpg-danger)]
+                 transition-opacity hover:opacity-90">
+    <i data-lucide="unlink" class="w-3.5 h-3.5"></i>
+    解除綁定
+  </button>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
 <script>
 const STUDENT_ID = {{ student.id }};
+
+function showToast(msg, type) {
+  // Simple toast - create a temporary notification
+  const toast = document.createElement('div');
+  toast.className = 'fixed bottom-4 right-4 z-50 rounded px-4 py-3 font-tc text-xs font-bold transition-opacity ' +
+    (type === 'success' ? 'bg-[var(--rpg-success)]/20 border border-[var(--rpg-success)] text-[var(--rpg-success)]' :
+     'bg-[var(--rpg-danger)]/20 border border-[var(--rpg-danger)] text-[var(--rpg-danger)]');
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2500);
+}
 
 async function saveStudent() {
   const payload = {
@@ -177,20 +235,15 @@ async function saveStudent() {
     tokens: parseInt(document.getElementById('field-tokens').value, 10) || 0,
   };
   try {
-    const res = await fetch(`/api/admin/students/${STUDENT_ID}`, {
+    const res = await fetch('/api/admin/students/' + STUDENT_ID, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) {
-      showToast(data.detail || '儲存失敗', 'error');
-      return;
-    }
+    if (!res.ok) { showToast(data.detail || '儲存失敗', 'error'); return; }
     showToast('學生資料已更新', 'success');
-  } catch (e) {
-    showToast('請求失敗', 'error');
-  }
+  } catch (e) { showToast('請求失敗', 'error'); }
 }
 
 async function saveRecord(unitId) {
@@ -199,45 +252,35 @@ async function saveRecord(unitId) {
     return el && el.value !== '' ? parseFloat(el.value) : null;
   };
   const payload = {
-    preview_score: val(`preview-${unitId}`),
-    quiz_score: val(`quiz-${unitId}`),
-    homework_score: val(`homework-${unitId}`),
-    completion_rate: val(`completion-${unitId}`),
+    preview_score: val('preview-' + unitId),
+    quiz_score: val('quiz-' + unitId),
+    homework_score: val('homework-' + unitId),
+    completion_rate: val('completion-' + unitId),
   };
   try {
-    const res = await fetch(`/api/admin/students/${STUDENT_ID}/records/${unitId}`, {
+    const res = await fetch('/api/admin/students/' + STUDENT_ID + '/records/' + unitId, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    if (!res.ok) {
-      showToast(data.detail || '儲存失敗', 'error');
-      return;
-    }
+    if (!res.ok) { showToast(data.detail || '儲存失敗', 'error'); return; }
     showToast('成績已更新', 'success');
-  } catch (e) {
-    showToast('請求失敗', 'error');
-  }
+  } catch (e) { showToast('請求失敗', 'error'); }
 }
 
 async function unbindStudent() {
   if (!confirm('確定要解除此學生的 Email 綁定嗎？學習記錄與卡牌資料將會保留。')) return;
   try {
-    const res = await fetch(`/api/admin/students/${STUDENT_ID}/unbind`, {
+    const res = await fetch('/api/admin/students/' + STUDENT_ID + '/unbind', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
     });
     const data = await res.json();
-    if (!res.ok) {
-      showToast(data.detail || '操作失敗', 'error');
-      return;
-    }
+    if (!res.ok) { showToast(data.detail || '操作失敗', 'error'); return; }
     showToast(data.message || '已解除綁定', 'success');
     setTimeout(() => { window.location.href = '/admin/students'; }, 1000);
-  } catch (e) {
-    showToast('請求失敗', 'error');
-  }
+  } catch (e) { showToast('請求失敗', 'error'); }
 }
 </script>
 {% endblock %}

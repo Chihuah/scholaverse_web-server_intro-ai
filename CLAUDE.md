@@ -94,3 +94,28 @@ uv run pytest tests/ -v                          # 執行測試
 - 自主學習 → 表情、姿勢、外框
 
 分數越高，可選選項越多、品質越高。詳見 `docs/system-spec.md` 第 4 節
+
+## UI 設計規範
+
+本專案的前端 UI 設計規範來自 `docs/ui-design-spec.md`，這是從已驗證的 React SPA 原型自動提取的完整設計交接文件。
+
+### 必讀文件
+
+1. **`docs/ui-design-spec.md`**（主要參考）— 包含：
+   - 完整 CSS 變數表與色彩用途
+   - 5 個頁面的 HTML 結構與 Tailwind class（可直接複製到 Jinja2）
+   - 響應式斷點行為對照表
+   - Jinja2 + HTMX 轉換指南
+   - 示範資料結構
+2. **`ref/react-frontend/`**（輔助參考）— React 原始碼，用於理解細節互動邏輯
+3. **`system-spec.md`**（系統規格書）— 資料模型、API 端點、評分規則
+
+### 開發注意事項
+
+- UI 文字使用 **繁體中文 (zh-TW)**
+- 所有色彩透過 CSS 變數引用，不硬寫 hex 值
+- 像素風格文字用 `.font-pixel`（Press Start 2P），中文內文用 `.font-tc`（Noto Sans TC）
+- Icon 使用 **Lucide Icons**（CDN 版，`data-lucide` 屬性）
+- 響應式斷點：Mobile < 768px、Tablet md: 768px+、Desktop lg: 1024px+
+- 卡牌 gallery 在手機上使用橫向滾動 + CSS snap
+- 由文生圖模型所生成的卡牌圖片，預設是直式長方形，寬度是880px，高度是1280px（880x1280），請注意頁面排版設計要符合與適應這個預設卡牌的尺寸大小。

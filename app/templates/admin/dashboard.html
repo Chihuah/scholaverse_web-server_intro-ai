@@ -1,68 +1,131 @@
 {% extends "base.html" %}
 
-{% block title %}管理後台 — Scholaverse{% endblock %}
+{% block title %}管理後台{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="font-pixel text-rpg-gold text-sm sm:text-base">ADMIN PANEL</h1>
-    <div class="flex gap-2">
-      <a href="/admin/students" class="pixel-btn-sm">學生列表</a>
-      <a href="/admin/roster" class="pixel-btn-sm">匯入名單</a>
-      <a href="/admin/import" class="pixel-btn-sm">匯入成績</a>
-      <a href="/admin/rules" class="pixel-btn-sm">屬性規則</a>
+<!-- Header with buttons -->
+<div class="flex flex-col gap-3 w-full shrink-0 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex items-center gap-3">
+    <i data-lucide="settings" class="w-6 h-6 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-xl font-black tracking-widest text-[var(--rpg-gold)]">管理後台</h1>
+  </div>
+  <div class="flex flex-col gap-2 w-full sm:flex-row sm:items-center sm:gap-3 sm:w-auto">
+    <a href="/admin/roster"
+       class="flex items-center justify-center gap-2 rounded px-4 py-2
+              bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]
+              font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]
+              transition-opacity hover:opacity-90">
+      <i data-lucide="users" class="w-3.5 h-3.5 text-[var(--rpg-gold)]"></i>
+      匯入修課名單
+    </a>
+    <a href="/admin/import"
+       class="flex items-center justify-center gap-2 rounded px-4 py-2
+              bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]
+              font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]
+              transition-opacity hover:opacity-90">
+      <i data-lucide="upload" class="w-3.5 h-3.5 text-[var(--rpg-gold)]"></i>
+      匯入成績 CSV
+    </a>
+    <a href="/admin/rules"
+       class="flex items-center justify-center gap-2 rounded px-4 py-2
+              bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)]
+              font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]
+              transition-opacity hover:opacity-90">
+      <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-[var(--rpg-gold-bright)]"></i>
+      屬性規則設定
+    </a>
+  </div>
+</div>
+
+<!-- Stats grid -->
+<div class="grid grid-cols-2 gap-3 w-full lg:grid-cols-3 lg:gap-4 shrink-0">
+  <!-- Stat: 註冊學生 -->
+  <div class="flex flex-col gap-2 flex-1 rounded px-5 py-4
+              bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+    <div class="flex items-center gap-2">
+      <i data-lucide="users" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]">註冊學生</span>
+    </div>
+    <div class="flex items-baseline gap-2">
+      <span class="font-tc text-2xl font-black text-[var(--rpg-text-primary)]">{{ total_students }}</span>
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">/ 50 名額</span>
     </div>
   </div>
 
-  <!-- Stats Cards -->
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-    <div class="pixel-panel p-4 text-center">
-      <p class="text-rpg-text-dim text-xs mb-2">學生總數</p>
-      <p class="font-pixel text-rpg-gold text-lg">{{ total_students }}</p>
+  <!-- Stat: 已生成卡牌 -->
+  <div class="flex flex-col gap-2 flex-1 rounded px-5 py-4
+              bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+    <div class="flex items-center gap-2">
+      <i data-lucide="file-spreadsheet" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]">已生成卡牌</span>
     </div>
-    <div class="pixel-panel p-4 text-center">
-      <p class="text-rpg-text-dim text-xs mb-2">卡牌總數</p>
-      <p class="font-pixel text-rpg-gold text-lg">{{ total_cards }}</p>
-    </div>
-    <div class="pixel-panel p-4 text-center">
-      <p class="text-rpg-text-dim text-xs mb-2">已完成卡牌</p>
-      <p class="font-pixel text-rpg-gold text-lg">{{ completed_cards }}</p>
+    <div class="flex items-baseline gap-2">
+      <span class="font-tc text-2xl font-black text-[var(--rpg-text-primary)]">{{ total_cards }}</span>
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">總計</span>
     </div>
   </div>
 
-  <!-- Unit Score Averages -->
-  <div class="pixel-panel p-4">
-    <h2 class="font-pixel text-rpg-gold text-xs mb-4">UNIT AVERAGES</h2>
-    {% if unit_stats %}
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b-2 border-rpg-brass text-rpg-text-dim text-xs">
-            <th class="text-left py-2 px-2">單元</th>
-            <th class="text-right py-2 px-2">平均測驗</th>
-            <th class="text-right py-2 px-2">平均作業</th>
-            <th class="text-right py-2 px-2">記錄數</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for u in unit_stats %}
-          <tr class="border-b border-rpg-brass/30">
-            <td class="py-2 px-2">
-              <span class="text-rpg-gold font-medium">{{ u.code }}</span>
-              <span class="text-rpg-text-dim ml-2">{{ u.name }}</span>
-            </td>
-            <td class="text-right py-2 px-2">{{ u.avg_quiz }}</td>
-            <td class="text-right py-2 px-2">{{ u.avg_homework }}</td>
-            <td class="text-right py-2 px-2 text-rpg-text-dim">{{ u.record_count }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <!-- Stat: 已完成卡牌 -->
+  <div class="flex flex-col gap-2 flex-1 rounded px-5 py-4
+              bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+    <div class="flex items-center gap-2">
+      <i data-lucide="check-circle" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]">已完成卡牌</span>
     </div>
-    {% else %}
-    <p class="text-rpg-text-dim text-sm">尚無學習記錄。</p>
-    {% endif %}
+    <div class="flex items-baseline gap-2">
+      <span class="font-tc text-2xl font-black text-[var(--rpg-text-primary)]">{{ completed_cards }}</span>
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">張</span>
+    </div>
+  </div>
+</div>
+
+<!-- Unit Averages Section -->
+<div class="flex flex-col gap-3 flex-1 min-h-0">
+  <div class="flex flex-col gap-1 w-full sm:flex-row sm:items-center sm:justify-between shrink-0">
+    <div class="flex items-center gap-2">
+      <i data-lucide="bar-chart-3" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-sm font-bold text-[var(--rpg-text-primary)]">各單元平均成績</span>
+    </div>
+    <a href="/admin/students"
+       class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-gold)] hover:text-[var(--rpg-gold-bright)] transition-colors">
+      <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+      學生管理
+      <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+    </a>
+  </div>
+
+  <!-- Unit stats table -->
+  <div class="flex flex-col flex-1 min-h-0 rounded bg-[var(--rpg-bg-panel)]
+              border-2 border-[var(--rpg-gold-dark)] overflow-auto scrollbar-hide">
+    <div class="min-w-[480px]">
+      <!-- Header row -->
+      <div class="flex items-center gap-4 px-5 py-3 bg-[var(--rpg-bg-card)]
+                  border-b border-[var(--rpg-gold-dark)] sticky top-0 z-10">
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">單元代碼</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">單元名稱</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20 text-center">平均測驗</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20 text-center">平均作業</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">記錄數</span>
+      </div>
+      <!-- Data rows -->
+      {% if unit_stats %}
+      {% for u in unit_stats %}
+      <div class="flex items-center gap-4 px-5 py-2.5 border-b border-[var(--rpg-bg-input)]
+                  hover:bg-[var(--rpg-bg-card)]/50
+                  {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">{{ u.code }}</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] flex-1">{{ u.name }}</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] w-20 text-center">{{ u.avg_quiz }}</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] w-20 text-center">{{ u.avg_homework }}</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] w-16 text-center">{{ u.record_count }}</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="px-5 py-8 text-center">
+        <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">尚無學習記錄資料</p>
+      </div>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}

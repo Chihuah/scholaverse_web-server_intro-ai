@@ -1,120 +1,76 @@
 {% extends "base.html" %}
 
-{% block title %}Scholaverse - 卡牌詳情{% endblock %}
+{% block title %}卡牌詳情{% endblock %}
 
 {% block content %}
-<!-- Back link -->
-<div class="mb-4">
-  <a href="/cards" class="text-rpg-gold hover:underline text-sm">&larr; 返回卡牌收藏</a>
-</div>
+<!-- Back button -->
+<a href="/cards" class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)] shrink-0">
+  <i data-lucide="arrow-left" class="w-4 h-4"></i>返回卡牌收藏
+</a>
 
 {% if card %}
-<div class="mb-6">
-  <h1 class="pixel-title text-lg sm:text-xl mb-2">卡牌詳情</h1>
-</div>
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-  <!-- Card Image -->
-  <div class="flex justify-center">
-    <div class="card-frame card-frame-{{ card.border_style | default('copper') }} w-64 sm:w-72 bg-rpg-bg-deep">
-      <div class="aspect-[3/4] overflow-hidden flex items-center justify-center">
+<!-- Two column layout -->
+<div class="flex flex-col gap-6 flex-1 min-h-0 overflow-y-auto lg:flex-row">
+  <!-- Left: Card image (portrait 880x1280) -->
+  <div class="flex justify-center shrink-0">
+    <div class="w-[220px] md:w-[264px]" style="aspect-ratio: 880/1280;">
+      {% set border_colors = {'copper': '#b87333', 'silver': '#c0c0c0', 'gold': '#ffd700'} %}
+      {% set bc = border_colors.get(card.border_style, '#b87333') %}
+      <div class="w-full h-full rounded overflow-hidden"
+           style="border: 3px solid {{ bc }};
+                  {% if card.border_style == 'gold' %}box-shadow: 0 0 16px 3px rgba(255,215,0,0.4);{% endif %}">
         {% if card.image_url %}
-        <img src="{{ card.image_url }}" alt="角色卡牌 Lv.{{ card.level_number | default('?') }}"
-             class="w-full h-full object-cover" style="image-rendering: pixelated;">
+        <img src="{{ card.image_url }}" alt="卡牌" class="w-full h-full object-cover">
         {% else %}
-        <div class="text-center">
-          {% if card.status == 'pending' %}
-          <div class="pixel-shimmer">
-            <p class="text-rpg-gold text-sm mb-2">生成中...</p>
-            <p class="text-rpg-text-dim text-xs">AI 正在繪製你的角色卡牌</p>
-          </div>
-          {% elif card.status == 'failed' %}
-          <p class="text-red-400 text-sm mb-2">生成失敗</p>
-          <p class="text-rpg-text-dim text-xs">請聯繫教師或重新嘗試</p>
-          {% else %}
-          <img src="/static/images/placeholder/card_placeholder.svg"
-               alt="卡牌預覽" class="w-24 h-24 opacity-50 mx-auto">
-          {% endif %}
-        </div>
+        <img src="/static/images/placeholder/card-gold-1.png" alt="卡牌" class="w-full h-full object-cover">
         {% endif %}
-      </div>
-      <div class="text-center py-3">
-        <p class="text-rpg-gold font-mono font-bold">Lv.{{ card.level_number | default('?') }}</p>
       </div>
     </div>
   </div>
 
-  <!-- Card Info -->
-  <div>
-    <!-- Status & Meta -->
-    <div class="pixel-panel mb-4">
-      <h2 class="pixel-title text-xs mb-3">卡牌資訊</h2>
-      <div class="space-y-2">
-        <div class="flex justify-between text-sm">
-          <span class="text-rpg-text-dim">等級</span>
-          <span class="text-rpg-gold font-mono font-bold">Lv.{{ card.level_number | default('?') }}</span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-rpg-text-dim">邊框</span>
-          <span class="text-rpg-{{ card.border_style | default('copper') }} font-semibold capitalize">{{ card.border_style | default('copper') }}</span>
-        </div>
-        <div class="flex justify-between text-sm">
-          <span class="text-rpg-text-dim">狀態</span>
-          <span class="{% if card.status == 'completed' %}text-green-400{% elif card.status == 'pending' %}text-yellow-400{% else %}text-red-400{% endif %}">
-            {% if card.status == 'completed' %}已完成{% elif card.status == 'pending' %}生成中{% elif card.status == 'failed' %}失敗{% else %}{{ card.status }}{% endif %}
-          </span>
-        </div>
-        {% if card.is_latest %}
-        <div class="flex justify-between text-sm">
-          <span class="text-rpg-text-dim">標記</span>
-          <span class="text-rpg-gold">★ 最新卡牌</span>
-        </div>
-        {% endif %}
-        {% if card.generated_at %}
-        <div class="flex justify-between text-sm">
-          <span class="text-rpg-text-dim">生成時間</span>
-          <span class="text-rpg-text font-mono text-xs">{{ card.generated_at.strftime('%Y-%m-%d %H:%M') }}</span>
-        </div>
-        {% endif %}
-        <div class="flex justify-between text-sm">
-          <span class="text-rpg-text-dim">建立時間</span>
-          <span class="text-rpg-text font-mono text-xs">{{ card.created_at.strftime('%Y-%m-%d %H:%M') if card.created_at else '--' }}</span>
-        </div>
-      </div>
+  <!-- Right: Card details -->
+  <div class="flex flex-col gap-4 flex-1 rounded px-5 py-4
+              bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+    <div>
+      <h1 class="font-pixel text-sm text-[var(--rpg-gold)]">
+        Lv.{{ card.level_number }} 角色卡牌
+      </h1>
+      <p class="font-tc text-xs text-[var(--rpg-text-secondary)] mt-1">
+        生成時間：{{ card.created_at.strftime('%Y-%m-%d %H:%M') if card.created_at else '--' }}
+      </p>
     </div>
 
-    <!-- Attribute Breakdown from config_snapshot -->
-    <div class="pixel-panel">
-      <h2 class="pixel-title text-xs mb-3">角色屬性</h2>
-      {% if card.config_snapshot %}
-        {% set snapshot = card.config_snapshot | fromjson if card.config_snapshot is string else card.config_snapshot %}
-        {% if snapshot is mapping %}
-        <div class="space-y-2">
-          {% for key, value in snapshot.items() %}
-          <div class="flex justify-between text-sm bg-rpg-bg-deep p-2 border border-rpg-brass">
-            <span class="text-rpg-text-dim">{{ key }}</span>
-            <span class="text-rpg-gold">{{ value }}</span>
-          </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="text-rpg-text-dim text-sm">{{ card.config_snapshot }}</p>
-        {% endif %}
-      {% else %}
-      <p class="text-rpg-text-dim text-sm text-center py-4">尚無角色屬性資料。</p>
-      {% endif %}
+    <!-- Attributes from config_snapshot -->
+    {% set snap = card.config_snapshot | fromjson %}
+    {% if snap %}
+    <div class="flex flex-col gap-2">
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)]">角色屬性</span>
+      {% for key, value in snap.items() %}
+      <div class="flex items-center gap-2">
+        <span class="font-tc text-xs text-[var(--rpg-text-secondary)] w-16">{{ key }}</span>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">{{ value }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Border info -->
+    <div class="flex items-center gap-2 mt-auto pt-4 border-t border-[var(--rpg-gold-dark)]">
+      {% set border_labels = {'copper': '銅色邊框', 'silver': '銀色邊框', 'gold': '金色邊框'} %}
+      <i data-lucide="{% if card.border_style == 'gold' %}crown{% else %}shield{% endif %}"
+         class="w-4 h-4" style="color: {{ bc }}"></i>
+      <span class="font-tc text-xs font-bold" style="color: {{ bc }}">
+        {{ border_labels.get(card.border_style, '銅色邊框') }}
+      </span>
     </div>
   </div>
 </div>
 
 {% else %}
-<!-- Card Not Found -->
-<div class="pixel-panel">
-  <div class="text-center py-8">
-    <p class="text-rpg-text-dim text-3xl mb-3">?</p>
-    <p class="text-rpg-text-dim text-sm">找不到此卡牌，或此卡牌不屬於你。</p>
-    <a href="/cards" class="pixel-btn mt-4 inline-block text-xs">返回卡牌收藏</a>
-  </div>
+<!-- Card not found -->
+<div class="flex flex-col items-center gap-3 py-16 text-center">
+  <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">找不到此卡牌</p>
+  <a href="/cards" class="font-tc text-xs text-[var(--rpg-gold)] hover:underline">返回卡牌收藏</a>
 </div>
 {% endif %}
 {% endblock %}

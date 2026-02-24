@@ -22,7 +22,7 @@ data/
 .claude/skills/
 
 # Reference files (project proposals, UI examples)
-ref/
+# ref/
 
 # Local test account setup (contains real email/student_id)
 scripts/setup_test_accounts.py

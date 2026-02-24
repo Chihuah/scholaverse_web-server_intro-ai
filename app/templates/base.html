@@ -1,157 +1,168 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Scholaverse{% endblock %}</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scholaverse - {% block title %}{% endblock %}</title>
 
-  <!-- Google Fonts: Press Start 2P (pixel headings) + Noto Sans TC (Chinese body) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Press+Start+2P&display=swap" rel="stylesheet">
-
-  <!-- Tailwind CSS v3 Play CDN -->
+  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tailwind config (extends font families) -->
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          colors: {
-            'rpg-bg':      '#1a1a2e',
-            'rpg-bg-deep': '#0f0c29',
-            'rpg-panel':   '#2d3a1a',
-            'rpg-panel-alt':'#1e3a1a',
-            'rpg-gold':    '#d4a847',
-            'rpg-gold-alt':'#c8a84e',
-            'rpg-brass':   '#8b6914',
-            'rpg-text':    '#e8d5b0',
-            'rpg-text-dim':'#a89070',
-            'rpg-copper':  '#b87333',
-            'rpg-silver':  '#c0c0c0',
-            'rpg-gold-bright': '#ffd700',
-          },
           fontFamily: {
-            'pixel': ['"Press Start 2P"', 'monospace'],
-            'body':  ['"Noto Sans TC"', 'sans-serif'],
+            pixel: ['"Press Start 2P"', 'monospace'],
+            tc: ['"Noto Sans TC"', 'sans-serif'],
           },
         },
       },
     }
   </script>
 
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 
-  <!-- Custom Styles -->
+  <!-- Custom CSS -->
   <link rel="stylesheet" href="/static/css/style.css">
 
   {% block head_extra %}{% endblock %}
 </head>
-<body class="bg-rpg-bg text-rpg-text font-body min-h-screen flex flex-col pixel-scanlines">
+<body class="h-screen font-tc bg-[var(--rpg-bg-dark)]">
+  <div id="app" class="relative flex h-full overflow-hidden">
 
-  <!-- ========== Top Navigation Bar ========== -->
-  <nav class="nav-bar bg-rpg-bg border-b-4 border-rpg-gold sticky top-0 z-50">
-    <div class="container mx-auto px-4">
-      <div class="flex items-center justify-between h-14">
+    <!-- Mobile overlay backdrop -->
+    <div id="sidebar-backdrop"
+         class="fixed inset-0 z-40 bg-black/60 lg:hidden hidden"
+         onclick="closeSidebar()">
+    </div>
 
-        <!-- Left: Logo -->
-        <a href="/" class="font-pixel text-rpg-gold text-xs sm:text-sm gold-pulse whitespace-nowrap">
-          Scholaverse
+    <!-- Sidebar -->
+    <aside id="sidebar"
+           class="flex flex-col w-60 shrink-0 h-full gap-4 px-3 py-4
+                  bg-[var(--rpg-bg-panel)] border-r-2 border-[var(--rpg-gold-dark)]
+                  fixed inset-y-0 left-0 z-50 transition-transform duration-200
+                  -translate-x-full lg:static lg:translate-x-0">
+
+      <!-- Close button (mobile) -->
+      <button class="self-end p-1 lg:hidden text-[var(--rpg-gold)]"
+              onclick="closeSidebar()">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Logo -->
+      <div class="flex flex-col items-center gap-1 px-2 py-2">
+        <i data-lucide="shield" class="w-8 h-8 text-[var(--rpg-gold)]"></i>
+        <span class="font-pixel text-[11px] tracking-widest text-center text-[var(--rpg-gold)]">
+          SCHOLAVERSE
+        </span>
+        <span class="font-tc text-[9px] font-bold tracking-widest text-center text-[var(--rpg-text-secondary)]">
+          學習冒險之旅
+        </span>
+      </div>
+
+      <div class="h-0.5 w-full bg-[var(--rpg-gold-dark)] shrink-0"></div>
+
+      <!-- Navigation -->
+      <nav class="flex flex-col gap-1 flex-1">
+        {% set nav_items = [
+          ('/', 'layout-dashboard', '儀表板'),
+          ('/cards', 'image', '我的卡牌'),
+          ('/hall', 'swords', '角色大廳'),
+          ('/progress', 'scroll-text', '學習歷程'),
+        ] %}
+        {% for href, icon, label in nav_items %}
+        <a href="{{ href }}"
+           onclick="closeSidebar()"
+           class="flex items-center gap-2.5 w-full rounded px-3 py-2.5 text-xs font-bold font-tc transition-colors text-left
+                  {% if request.url.path == href %}
+                    bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)] text-[var(--rpg-gold)]
+                  {% else %}
+                    border border-transparent text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)] hover:bg-[var(--rpg-bg-card)]/50
+                  {% endif %}">
+          <i data-lucide="{{ icon }}" class="w-[18px] h-[18px]"></i>
+          <span>{{ label }}</span>
         </a>
+        {% endfor %}
 
-        <!-- Center: Desktop Nav Links -->
-        <div class="hidden md:flex items-center gap-1 lg:gap-2">
-          <a href="/" class="nav-link">儀表板</a>
-          <a href="/cards" class="nav-link flex items-center gap-1">
-            <img src="/static/images/ui/icons/sword_gold.png" alt="" class="inline-block" style="width:14px;height:auto;image-rendering:pixelated;opacity:0.85;">
-            我的卡牌</a>
-          <a href="/hall" class="nav-link">角色大廳</a>
-          <a href="/progress" class="nav-link">學習歷程</a>
-          {% if user and user.role in ['teacher', 'admin'] %}
-          <a href="/admin" class="nav-link" style="color: #f59e0b;">管理後台</a>
-          {% endif %}
-        </div>
-
-        <!-- Right: User Info + Tokens -->
-        <div class="hidden md:flex items-center gap-3">
-          {% if user %}
-          <span class="token-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="8" cy="8" r="7" fill="#ffd700" stroke="#8b6914" stroke-width="1"/>
-              <text x="8" y="11" text-anchor="middle" font-size="8" fill="#8b6914" font-weight="bold">$</text>
-            </svg>
-            {{ user.tokens | default(0) }}
-          </span>
-          <span class="text-rpg-text-dim text-xs truncate max-w-[160px]">
-            {{ user.name | default(user.email | default('Guest')) }}
-          </span>
-          {% endif %}
-        </div>
-
-        <!-- Mobile: Hamburger Button -->
-        <button id="mobile-nav-toggle"
-                class="md:hidden text-rpg-gold p-1 border-2 border-rpg-gold"
-                style="box-shadow: -2px 0 0 0 #d4a847, 2px 0 0 0 #d4a847, 0 -2px 0 0 #d4a847, 0 2px 0 0 #d4a847;"
-                aria-expanded="false"
-                aria-controls="mobile-nav-menu"
-                aria-label="Toggle navigation">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="square" d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobile Menu (hidden by default) -->
-    <div id="mobile-nav-menu" class="hidden md:hidden border-t-2 border-rpg-brass bg-rpg-bg">
-      <div class="container mx-auto px-4 py-3 flex flex-col gap-2">
-        <a href="/" class="nav-link block">儀表板</a>
-        <a href="/cards" class="nav-link flex items-center gap-1">
-            <img src="/static/images/ui/icons/sword_gold.png" alt="" class="inline-block" style="width:14px;height:auto;image-rendering:pixelated;opacity:0.85;">
-            我的卡牌</a>
-        <a href="/hall" class="nav-link block">角色大廳</a>
-        <a href="/progress" class="nav-link block">學習歷程</a>
-        {% if user and user.role in ['teacher', 'admin'] %}
-        <a href="/admin" class="nav-link block" style="color: #f59e0b;">管理後台</a>
+        {% if user and user.role in ('teacher', 'admin') %}
+        <a href="/admin"
+           onclick="closeSidebar()"
+           class="flex items-center gap-2.5 w-full rounded px-3 py-2.5 text-xs font-bold font-tc transition-colors text-left
+                  {% if request.url.path == '/admin' %}
+                    bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)] text-[var(--rpg-gold)]
+                  {% else %}
+                    border border-transparent text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)] hover:bg-[var(--rpg-bg-card)]/50
+                  {% endif %}">
+          <i data-lucide="settings" class="w-[18px] h-[18px]"></i>
+          <span>管理後台</span>
+        </a>
         {% endif %}
+      </nav>
+
+      <div class="h-0.5 w-full bg-[var(--rpg-gold-dark)] shrink-0"></div>
+
+      <!-- User Info -->
+      <div class="flex flex-col gap-2 px-1 py-2">
         {% if user %}
-        <div class="flex items-center gap-3 pt-2 mt-2 border-t-2 border-rpg-brass">
-          <span class="token-badge">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="8" cy="8" r="7" fill="#ffd700" stroke="#8b6914" stroke-width="1"/>
-              <text x="8" y="11" text-anchor="middle" font-size="8" fill="#8b6914" font-weight="bold">$</text>
-            </svg>
-            {{ user.tokens | default(0) }}
-          </span>
-          <span class="text-rpg-text-dim text-sm truncate">
-            {{ user.name | default(user.email | default('Guest')) }}
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full shrink-0 bg-[var(--rpg-gold-dark)] flex items-center justify-center">
+            <span class="font-pixel text-[10px] text-[var(--rpg-gold)]">
+              {{ user.email[0] | upper }}
+            </span>
+          </div>
+          <span class="font-tc text-[11px] text-[var(--rpg-text-secondary)] truncate">
+            {{ user.email }}
           </span>
         </div>
+        <div class="flex items-center gap-1.5">
+          <i data-lucide="coins" class="w-4 h-4 text-[var(--rpg-gold-bright)]"></i>
+          <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]">
+            {{ user.tokens }} 代幣
+          </span>
+        </div>
+        {% else %}
+        <span class="font-tc text-[11px] text-[var(--rpg-text-secondary)]">未登入</span>
         {% endif %}
       </div>
-    </div>
-  </nav>
+    </aside>
 
-  <!-- ========== Flash Messages / HTMX Toast ========== -->
-  <div class="toast-container" id="toast-container"></div>
+    <!-- Main Content -->
+    <main class="flex flex-col flex-1 min-w-0 overflow-y-auto gap-6
+                 px-4 py-5 md:px-6 md:py-6 lg:px-8 lg:py-7">
 
-  <!-- ========== Main Content ========== -->
-  <main class="container mx-auto px-4 py-6 flex-1">
-    {% block content %}{% endblock %}
-  </main>
+      <!-- Hamburger (mobile) -->
+      <button class="self-start p-1 lg:hidden text-[var(--rpg-gold)] shrink-0"
+              onclick="openSidebar()">
+        <i data-lucide="menu" class="w-6 h-6"></i>
+      </button>
 
-  <!-- ========== Footer ========== -->
-  <footer class="border-t-4 border-rpg-gold mt-auto"
-          style="box-shadow: 0 -4px 0 0 #8b6914;">
-    <div class="container mx-auto px-4 py-4 text-center">
-      <p class="text-rpg-text-dim text-xs">
-        &copy; 2026 Scholaverse &mdash; 輔仁大學人工智慧概論
-      </p>
-    </div>
-  </footer>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 
-  <!-- App JavaScript -->
-  <script src="/static/js/app.js"></script>
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Sidebar toggle
+    function openSidebar() {
+      document.getElementById('sidebar').classList.remove('-translate-x-full');
+      document.getElementById('sidebar-backdrop').classList.remove('hidden');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.add('-translate-x-full');
+      document.getElementById('sidebar-backdrop').classList.add('hidden');
+    }
+  </script>
   {% block scripts_extra %}{% endblock %}
 </body>
 </html>

@@ -1,129 +1,75 @@
 /* ============================================
    Scholaverse - App JavaScript
-   HTMX config, mobile nav, toast notifications
+   HTMX event handlers, toast notifications
+   Note: sidebar toggle is in base.html inline script
    ============================================ */
 
 (function () {
   "use strict";
 
-  /* --- Mobile Navigation Toggle --- */
-  function initMobileNav() {
-    var toggle = document.getElementById("mobile-nav-toggle");
-    var menu = document.getElementById("mobile-nav-menu");
-    if (!toggle || !menu) return;
-
-    toggle.addEventListener("click", function () {
-      var expanded = toggle.getAttribute("aria-expanded") === "true";
-      toggle.setAttribute("aria-expanded", String(!expanded));
-      menu.classList.toggle("hidden");
-    });
-
-    // Close menu when clicking a link
-    menu.querySelectorAll("a").forEach(function (link) {
-      link.addEventListener("click", function () {
-        menu.classList.add("hidden");
-        toggle.setAttribute("aria-expanded", "false");
-      });
-    });
-  }
-
   /* --- Toast Notification System --- */
-  var toastContainer = null;
-
-  function getToastContainer() {
-    if (toastContainer) return toastContainer;
-    toastContainer = document.createElement("div");
-    toastContainer.className = "toast-container";
-    document.body.appendChild(toastContainer);
-    return toastContainer;
-  }
-
   function showToast(message, type, duration) {
     type = type || "info";
     duration = duration || 3000;
 
-    var container = getToastContainer();
-    var toast = document.createElement("div");
-    toast.className = "toast";
-    if (type === "success") toast.classList.add("toast-success");
-    else if (type === "warning") toast.classList.add("toast-warning");
-    else if (type === "error" || type === "danger") toast.classList.add("toast-danger");
+    var container = document.getElementById("toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toast-container";
+      container.style.cssText = "position:fixed;bottom:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;";
+      document.body.appendChild(container);
+    }
 
+    var toast = document.createElement("div");
+    toast.style.cssText = [
+      "font-family:'Noto Sans TC',sans-serif;font-size:12px;font-weight:700;",
+      "padding:0.5rem 1rem;border-radius:4px;border:2px solid;",
+      "transition:opacity 0.3s;",
+      type === "success"
+        ? "background:var(--rpg-bg-panel);border-color:var(--rpg-success);color:var(--rpg-success);"
+        : type === "error" || type === "danger"
+        ? "background:var(--rpg-bg-panel);border-color:var(--rpg-danger);color:var(--rpg-danger);"
+        : "background:var(--rpg-bg-panel);border-color:var(--rpg-gold-dark);color:var(--rpg-text-primary);",
+    ].join("");
     toast.textContent = message;
     container.appendChild(toast);
 
-    // Trigger show animation
-    requestAnimationFrame(function () {
-      toast.classList.add("show");
-    });
-
-    // Auto-dismiss
     setTimeout(function () {
-      toast.classList.remove("show");
-      setTimeout(function () {
-        toast.remove();
-      }, 300);
+      toast.style.opacity = "0";
+      setTimeout(function () { toast.remove(); }, 300);
     }, duration);
   }
 
-  // Expose globally
   window.showToast = showToast;
 
   /* --- HTMX Event Handlers --- */
   function initHTMX() {
-    // Show toast on successful HTMX swap with HX-Trigger header
+    // Re-init Lucide icons after every HTMX swap
+    document.body.addEventListener("htmx:afterSwap", function () {
+      if (window.lucide) { lucide.createIcons(); }
+    });
+
+    // Show toast from HX-Trigger response header
     document.body.addEventListener("showToast", function (evt) {
       var detail = evt.detail || {};
-      showToast(detail.message || "Done", detail.type || "success", detail.duration);
+      showToast(detail.message || "完成", detail.type || "success", detail.duration);
     });
 
     // Handle HTMX errors
     document.body.addEventListener("htmx:responseError", function (evt) {
       var status = evt.detail.xhr ? evt.detail.xhr.status : 0;
       if (status === 401 || status === 403) {
-        showToast("Permission denied", "error");
+        showToast("權限不足", "error");
       } else if (status >= 500) {
-        showToast("Server error, please try again", "error");
+        showToast("伺服器錯誤，請稍後再試", "error");
       } else {
-        showToast("Request failed", "warning");
-      }
-    });
-
-    // Loading indicator on HTMX requests
-    document.body.addEventListener("htmx:beforeRequest", function (evt) {
-      var target = evt.detail.elt;
-      if (target && target.classList.contains("pixel-btn")) {
-        target.dataset.originalText = target.textContent;
-        target.textContent = "...";
-        target.disabled = true;
-      }
-    });
-
-    document.body.addEventListener("htmx:afterRequest", function (evt) {
-      var target = evt.detail.elt;
-      if (target && target.dataset.originalText) {
-        target.textContent = target.dataset.originalText;
-        delete target.dataset.originalText;
-        target.disabled = false;
-      }
-    });
-  }
-
-  /* --- Highlight Current Nav Link --- */
-  function initActiveNav() {
-    var path = window.location.pathname;
-    document.querySelectorAll(".nav-link").forEach(function (link) {
-      var href = link.getAttribute("href");
-      if (href === path || (href !== "/" && path.startsWith(href))) {
-        link.classList.add("active");
+        showToast("請求失敗", "warning");
       }
     });
   }
 
   /* --- Init on DOM Ready --- */
   document.addEventListener("DOMContentLoaded", function () {
-    initMobileNav();
     initHTMX();
-    initActiveNav();
   });
 })();

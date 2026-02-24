@@ -21,10 +21,27 @@ class AIWorkerService(ABC):
 
     @abstractmethod
     async def submit_generation(
-        self, card_id: int, card_config: dict, learning_data: dict
+        self,
+        card_id: int,
+        student_number: str,
+        card_config: dict,
+        learning_data: dict,
     ) -> str:
         """Submit learning data + card config to ai-worker for prompt generation
-        and image creation. Returns job_id."""
+        and image creation. Returns job_id.
+
+        Parameters
+        ----------
+        card_id : int
+            Card row ID in the web-server database.
+        student_number : str
+            Student ID number (純數字學號). Used by ai-worker as the sd-cli
+            seed so the same student always gets a consistent generation base.
+        card_config : dict
+            RPG attribute configuration.
+        learning_data : dict
+            Unit scores and overall completion.
+        """
 
     @abstractmethod
     async def check_job_status(self, job_id: str) -> dict:
@@ -39,12 +56,17 @@ class RealAIWorkerService(AIWorkerService):
         self._base_url = settings.AI_WORKER_BASE_URL.rstrip("/")
 
     async def submit_generation(
-        self, card_id: int, card_config: dict, learning_data: dict
+        self,
+        card_id: int,
+        student_number: str,
+        card_config: dict,
+        learning_data: dict,
     ) -> str:
         job_id = str(uuid.uuid4())
         payload = {
             "job_id": job_id,
             "card_id": card_id,
+            "student_number": student_number,
             "card_config": card_config,
             "learning_data": learning_data,
             "style_hint": "16-bit pixel art, fantasy RPG character card",
@@ -81,12 +103,17 @@ class MockAIWorkerService(AIWorkerService):
         self._jobs: dict[str, dict] = {}
 
     async def submit_generation(
-        self, card_id: int, card_config: dict, learning_data: dict
+        self,
+        card_id: int,
+        student_number: str,
+        card_config: dict,
+        learning_data: dict,
     ) -> str:
         job_id = str(uuid.uuid4())
         self._jobs[job_id] = {
             "status": "generating",
             "card_id": card_id,
+            "student_number": student_number,
             "card_config": card_config,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "image_path": None,

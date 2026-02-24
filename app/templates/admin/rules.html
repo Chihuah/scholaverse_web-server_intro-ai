@@ -1,121 +1,146 @@
 {% extends "base.html" %}
 
-{% block title %}屬性規則設定 — Scholaverse{% endblock %}
+{% block title %}屬性規則設定{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="font-pixel text-rpg-gold text-sm sm:text-base">ATTRIBUTE RULES</h1>
-    <a href="/admin" class="pixel-btn-sm">返回後台</a>
+<!-- Header -->
+<div class="flex flex-col gap-3 w-full shrink-0 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex items-center gap-3">
+    <i data-lucide="sliders-horizontal" class="w-6 h-6 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-xl font-black tracking-widest text-[var(--rpg-gold)]">屬性規則設定</h1>
+  </div>
+  <a href="/admin"
+     class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-text-secondary)]
+            hover:text-[var(--rpg-gold)] transition-colors">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+    返回後台
+  </a>
+</div>
+
+<!-- Rules by unit -->
+{% for unit_code, attr_types in grouped.items() %}
+<div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] overflow-hidden w-full shrink-0">
+  <!-- Unit header -->
+  <div class="flex items-center gap-2 px-5 py-3 bg-[var(--rpg-bg-card)] border-b border-[var(--rpg-gold-dark)]">
+    <i data-lucide="scroll-text" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+    <span class="font-tc text-xs font-bold text-[var(--rpg-gold)]">{{ unit_code | upper }}</span>
+    <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">— {{ unit_names.get(unit_code, unit_code) }}</span>
   </div>
 
-  {% for unit_code, attr_types in grouped.items() %}
-  <div class="pixel-panel p-4 mb-6">
-    <h2 class="font-pixel text-rpg-gold text-xs mb-4">
-      {{ unit_code | upper }} — {{ unit_names.get(unit_code, unit_code) }}
-    </h2>
-
+  <div class="p-4">
     {% for attr_type, rules in attr_types.items() %}
-    <div class="mb-6 last:mb-0">
+    <div class="mb-4 last:mb-0">
       <!-- Collapsible header -->
-      <button
-        type="button"
-        class="w-full flex items-center justify-between text-left px-3 py-2 border-2 border-rpg-brass bg-rpg-bg-deep hover:bg-rpg-panel-alt/30 transition-colors"
-        onclick="toggleSection(this)"
-      >
-        <span class="text-rpg-text text-sm font-medium">
+      <button type="button"
+              class="flex items-center justify-between w-full rounded px-4 py-2.5
+                     bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                     hover:border-[var(--rpg-gold)] transition-colors"
+              onclick="toggleSection(this)">
+        <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">
           {{ attr_type }}
-          <span class="text-rpg-text-dim text-xs ml-2">({{ rules | length }} tiers)</span>
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] ml-2">({{ rules | length }} tiers)</span>
         </span>
-        <svg class="section-arrow w-4 h-4 text-rpg-gold transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <svg class="section-arrow w-4 h-4 text-[var(--rpg-gold)] transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="square" d="M19 9l-7 7-7-7"/>
         </svg>
       </button>
 
       <!-- Collapsible content -->
-      <div class="section-content hidden border-x-2 border-b-2 border-rpg-brass">
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b-2 border-rpg-brass text-rpg-text-dim text-xs">
-                <th class="text-left py-2 px-3 w-16">Tier</th>
-                <th class="text-left py-2 px-3">Options</th>
-                <th class="text-left py-2 px-3">Labels</th>
-                <th class="text-right py-2 px-3 w-20"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for rule in rules %}
-              <tr class="border-b border-rpg-brass/30" id="rule-row-{{ rule.id }}">
-                <td class="py-2 px-3">
-                  <span class="font-pixel text-xs
-                    {% if rule.tier == 'S' %}text-rpg-gold-bright
-                    {% elif rule.tier == 'A' %}text-rpg-gold
-                    {% elif rule.tier == 'B' %}text-rpg-silver
-                    {% elif rule.tier == 'C' %}text-rpg-copper
-                    {% else %}text-rpg-text-dim{% endif %}
-                  ">{{ rule.tier }}</span>
-                </td>
-                <td class="py-2 px-3 text-xs" id="rule-options-{{ rule.id }}">
-                  {{ rule.options | join(', ') }}
-                </td>
-                <td class="py-2 px-3 text-xs text-rpg-text-dim" id="rule-labels-{{ rule.id }}">
-                  {{ rule.labels.values() | join(', ') }}
-                </td>
-                <td class="py-2 px-3 text-right">
-                  <button
-                    type="button"
-                    class="pixel-btn-sm text-xs"
-                    data-rule-id="{{ rule.id }}"
-                    data-options='{{ rule.options | tojson | e }}'
-                    data-labels='{{ rule.labels | tojson | e }}'
-                    onclick="openEditFromBtn(this)"
-                  >編輯</button>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+      <div class="section-content hidden mt-1">
+        <div class="rounded bg-[var(--rpg-bg-card)]/30 border border-[var(--rpg-gold-dark)]/50 overflow-auto scrollbar-hide">
+          <div class="min-w-[400px]">
+            <!-- Table header -->
+            <div class="flex items-center px-4 py-2 border-b border-[var(--rpg-gold-dark)]/50">
+              <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-14">Tier</span>
+              <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">Options</span>
+              <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">Labels</span>
+              <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-14 text-center"></span>
+            </div>
+            <!-- Table rows -->
+            {% for rule in rules %}
+            <div id="rule-row-{{ rule.id }}"
+                 class="flex items-center px-4 py-2 border-b border-[var(--rpg-bg-input)]
+                        {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
+              <span class="font-pixel text-[10px] w-14
+                {% if rule.tier == 'S' %}text-[var(--rpg-gold-bright)]
+                {% elif rule.tier == 'A' %}text-[var(--rpg-gold)]
+                {% elif rule.tier == 'B' %}text-[var(--rpg-text-primary)]
+                {% elif rule.tier == 'C' %}text-[var(--rpg-text-secondary)]
+                {% else %}text-[var(--rpg-text-secondary)]{% endif %}
+              ">{{ rule.tier }}</span>
+              <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] flex-1" id="rule-options-{{ rule.id }}">
+                {{ rule.options | join(', ') }}
+              </span>
+              <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] flex-1" id="rule-labels-{{ rule.id }}">
+                {{ rule.labels.values() | join(', ') }}
+              </span>
+              <button type="button"
+                      class="w-14 text-center rounded px-2 py-1 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                             font-tc text-[10px] font-bold text-[var(--rpg-gold)]
+                             hover:border-[var(--rpg-gold)] transition-colors"
+                      data-rule-id="{{ rule.id }}"
+                      data-options='{{ rule.options | tojson | e }}'
+                      data-labels='{{ rule.labels | tojson | e }}'
+                      onclick="openEditFromBtn(this)">
+                編輯
+              </button>
+            </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
-  {% endfor %}
-
-  {% if not grouped %}
-  <div class="pixel-panel p-8 text-center">
-    <p class="text-rpg-text-dim text-sm">尚無屬性規則資料。請先執行 seed script。</p>
-  </div>
-  {% endif %}
 </div>
+{% endfor %}
+
+{% if not grouped %}
+<div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] px-5 py-8 text-center w-full">
+  <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">尚無屬性規則資料。請先執行 seed script。</p>
+</div>
+{% endif %}
 
 <!-- Edit Modal -->
 <div id="edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
-  <div class="pixel-panel p-6 w-full max-w-lg mx-4">
-    <h3 class="font-pixel text-rpg-gold text-xs mb-4">編輯規則</h3>
-    <input type="hidden" id="edit-rule-id">
-
-    <div class="mb-4">
-      <label class="block text-rpg-text-dim text-xs mb-1">Options（每行一個 key）</label>
-      <textarea id="edit-options"
-        class="w-full bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-3 py-2 font-mono
-               focus:border-rpg-gold focus:outline-none"
-        rows="6"></textarea>
+  <div class="w-full max-w-lg mx-4 rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+    <div class="flex items-center gap-2 px-5 py-3 bg-[var(--rpg-bg-card)] border-b border-[var(--rpg-gold-dark)]">
+      <i data-lucide="edit-3" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-xs font-bold text-[var(--rpg-gold)]">編輯規則</span>
     </div>
+    <div class="p-5">
+      <input type="hidden" id="edit-rule-id">
 
-    <div class="mb-4">
-      <label class="block text-rpg-text-dim text-xs mb-1">Labels（每行格式：key:中文標籤）</label>
-      <textarea id="edit-labels"
-        class="w-full bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text text-sm px-3 py-2 font-mono
-               focus:border-rpg-gold focus:outline-none"
-        rows="6"></textarea>
-    </div>
+      <div class="mb-4">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1">Options（每行一個 key）</label>
+        <textarea id="edit-options" rows="6"
+                  class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                         font-tc text-xs text-[var(--rpg-text-primary)] focus:outline-none focus:border-[var(--rpg-gold)]
+                         resize-y"></textarea>
+      </div>
 
-    <div class="flex justify-end gap-2">
-      <button type="button" class="pixel-btn-sm" onclick="closeEditModal()">取消</button>
-      <button type="button" class="pixel-btn-sm" style="background: #2d5a1a;" onclick="saveRule()">儲存</button>
+      <div class="mb-4">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)] block mb-1">Labels（每行格式：key:中文標籤）</label>
+        <textarea id="edit-labels" rows="6"
+                  class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                         font-tc text-xs text-[var(--rpg-text-primary)] focus:outline-none focus:border-[var(--rpg-gold)]
+                         resize-y"></textarea>
+      </div>
+
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeEditModal()"
+                class="rounded px-4 py-2 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                       font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]
+                       hover:border-[var(--rpg-gold)] transition-colors">
+          取消
+        </button>
+        <button type="button" onclick="saveRule()"
+                class="rounded px-4 py-2 bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)]
+                       font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]
+                       transition-opacity hover:opacity-90">
+          儲存
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -123,6 +148,16 @@
 
 {% block scripts_extra %}
 <script>
+function showToast(msg, type) {
+  const toast = document.createElement('div');
+  toast.className = 'fixed bottom-4 right-4 z-50 rounded px-4 py-3 font-tc text-xs font-bold transition-opacity ' +
+    (type === 'success' ? 'bg-[var(--rpg-success)]/20 border border-[var(--rpg-success)] text-[var(--rpg-success)]' :
+     'bg-[var(--rpg-danger)]/20 border border-[var(--rpg-danger)] text-[var(--rpg-danger)]');
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2500);
+}
+
 function toggleSection(btn) {
   const content = btn.nextElementSibling;
   const arrow = btn.querySelector('.section-arrow');
@@ -150,6 +185,7 @@ function openEditForm(ruleId, options, labels) {
   const modal = document.getElementById('edit-modal');
   modal.classList.remove('hidden');
   modal.classList.add('flex');
+  lucide.createIcons();
 }
 
 function closeEditModal() {
@@ -191,7 +227,6 @@ async function saveRule() {
 
     const data = await resp.json();
 
-    // Update the row in-place
     const optionsCell = document.getElementById('rule-options-' + ruleId);
     const labelsCell = document.getElementById('rule-labels-' + ruleId);
     if (optionsCell) optionsCell.textContent = data.options.join(', ');
@@ -204,7 +239,6 @@ async function saveRule() {
   }
 }
 
-// Close modal on backdrop click
 document.getElementById('edit-modal').addEventListener('click', function(e) {
   if (e.target === this) closeEditModal();
 });

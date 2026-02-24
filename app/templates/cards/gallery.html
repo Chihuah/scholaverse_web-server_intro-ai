@@ -1,80 +1,77 @@
 {% extends "base.html" %}
 
-{% block title %}Scholaverse - 我的卡牌{% endblock %}
+{% block title %}卡牌收藏{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="pixel-title text-lg sm:text-xl mb-2">我的卡牌收藏</h1>
-  <p class="text-rpg-text-dim text-sm">你的角色卡牌歷史紀錄</p>
+<!-- Header -->
+<div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between shrink-0">
+  <div>
+    <h1 class="font-pixel text-sm text-[var(--rpg-gold)]">我的卡牌收藏</h1>
+    <p class="font-tc text-xs mt-1 text-[var(--rpg-text-secondary)]">
+      已收集 {{ cards|length }} 張卡牌
+    </p>
+  </div>
 </div>
+
+<!-- Description -->
+<p class="font-tc text-[13px] text-[var(--rpg-text-secondary)] shrink-0">
+  每次完成學習單元後可生成新的角色卡牌，記錄你的成長歷程。
+</p>
 
 {% if cards %}
-<!-- Desktop: Grid layout / Mobile: Horizontal scroll -->
-<div class="hidden md:grid md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6">
+<!-- Card grid -->
+<div class="flex gap-4 flex-1 min-h-0 items-start
+            overflow-x-auto scrollbar-hide snap-x snap-mandatory px-2 pb-4
+            md:gap-6 md:justify-center md:overflow-x-visible md:px-0 md:pb-0 md:snap-none">
+  {% set border_colors = {'copper': '#b87333', 'silver': '#c0c0c0', 'gold': '#ffd700'} %}
+  {% set border_labels = {'copper': '銅色邊框', 'silver': '銀色邊框', 'gold': '金色邊框'} %}
+
   {% for card in cards %}
-  <a href="/cards/{{ card.id }}" class="block group">
-    <div class="card-frame card-frame-{{ card.border_style | default('copper') }} flex flex-col items-center p-3 bg-rpg-bg-deep">
-      <div class="w-full aspect-[3/4] mb-3 overflow-hidden flex items-center justify-center bg-rpg-bg">
-        {% if card.thumbnail_url or card.image_url %}
-        <img src="{{ card.thumbnail_url or card.image_url }}"
-             alt="卡牌 Lv.{{ card.level_number | default('?') }}"
-             class="w-full h-full object-cover" style="image-rendering: pixelated;">
+    {% set border_color = border_colors.get(card.border_style, '#b87333') %}
+    {% set border_label = border_labels.get(card.border_style, '銅色邊框') %}
+
+    <a href="/cards/{{ card.id }}"
+       class="flex flex-col items-center gap-2 cursor-pointer group shrink-0 snap-center no-underline">
+      <div class="w-40 h-60 md:w-[200px] md:h-[300px] rounded overflow-hidden
+                  transition-transform group-hover:scale-[1.02]"
+           style="border: 3px solid {{ border_color }};
+                  {% if card.is_latest %}box-shadow: 0 0 12px 2px {{ border_color }}66;{% endif %}">
+        {% if card.image_url %}
+        <img src="{{ card.image_url }}" alt="卡牌" class="w-full h-full object-cover">
         {% else %}
-        <img src="/static/images/placeholder/card_placeholder_thumb.svg"
-             alt="卡牌預覽" class="w-16 h-16 opacity-50">
+        <img src="/static/images/placeholder/card-copper-1.png" alt="卡牌" class="w-full h-full object-cover">
         {% endif %}
       </div>
-      <div class="text-center w-full">
-        <p class="text-rpg-gold font-mono text-sm font-bold">Lv.{{ card.level_number | default('?') }}</p>
+
+      <div class="flex items-center gap-1.5">
+        <span class="font-tc text-[10px] font-black" style="color: {{ border_color }}">
+          Lv.{{ card.level_number }}
+        </span>
         {% if card.is_latest %}
-        <span class="inline-block mt-1 px-2 py-0.5 text-[10px] bg-rpg-gold/20 text-rpg-gold border border-rpg-gold">最新</span>
+        <i data-lucide="star" class="w-3.5 h-3.5" style="color: {{ border_color }}"></i>
+        <span class="font-tc text-[9px] font-bold" style="color: {{ border_color }}">最新</span>
         {% endif %}
-        <p class="text-rpg-text-dim text-[10px] mt-1">
-          {{ card.created_at.strftime('%Y-%m-%d') if card.created_at else '' }}
-        </p>
       </div>
-    </div>
-  </a>
+
+      <span class="font-tc text-[11px] font-bold text-[var(--rpg-text-primary)] text-center">
+        {{ (card.config_snapshot | fromjson).get('class', '未知職業') }}
+      </span>
+
+      <span class="font-tc text-[9px] font-bold text-center" style="color: {{ border_color }}">
+        {{ border_label }}
+      </span>
+    </a>
   {% endfor %}
 </div>
-
-<!-- Mobile: Horizontal scroll -->
-<div class="md:hidden card-scroll flex gap-4 pb-4 mb-6">
-  {% for card in cards %}
-  <a href="/cards/{{ card.id }}" class="block flex-shrink-0 w-40">
-    <div class="card-frame card-frame-{{ card.border_style | default('copper') }} flex flex-col items-center p-2 bg-rpg-bg-deep">
-      <div class="w-full aspect-[3/4] mb-2 overflow-hidden flex items-center justify-center bg-rpg-bg">
-        {% if card.thumbnail_url or card.image_url %}
-        <img src="{{ card.thumbnail_url or card.image_url }}"
-             alt="卡牌 Lv.{{ card.level_number | default('?') }}"
-             class="w-full h-full object-cover" style="image-rendering: pixelated;">
-        {% else %}
-        <img src="/static/images/placeholder/card_placeholder_thumb.svg"
-             alt="卡牌預覽" class="w-12 h-12 opacity-50">
-        {% endif %}
-      </div>
-      <div class="text-center w-full">
-        <p class="text-rpg-gold font-mono text-xs font-bold">Lv.{{ card.level_number | default('?') }}</p>
-        {% if card.is_latest %}
-        <span class="inline-block mt-1 px-1 py-0.5 text-[8px] bg-rpg-gold/20 text-rpg-gold border border-rpg-gold">最新</span>
-        {% endif %}
-      </div>
-    </div>
-  </a>
-  {% endfor %}
-</div>
-
-<p class="text-rpg-text-dim text-xs text-center">點擊卡牌查看詳細資訊</p>
 
 {% else %}
-<!-- No Cards -->
-<div class="pixel-panel">
-  <div class="text-center py-8">
-    <p class="text-rpg-text-dim text-4xl mb-3">?</p>
-    <p class="text-rpg-text-dim text-sm mb-2">尚無卡牌。</p>
-    <p class="text-rpg-text-dim text-xs mb-4">完成學習單元並配置角色屬性後即可生成卡牌。</p>
-    <a href="/progress" class="pixel-btn text-xs">前往學習歷程</a>
-  </div>
+<!-- Empty state -->
+<div class="flex flex-col items-center gap-3 py-16 text-center w-full">
+  <i data-lucide="image" class="w-12 h-12 text-[var(--rpg-text-secondary)]"></i>
+  <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">尚未生成任何卡牌</p>
+  <a href="/progress" class="font-tc text-xs text-[var(--rpg-gold)] hover:underline">
+    前往學習歷程 →
+  </a>
 </div>
 {% endif %}
 {% endblock %}

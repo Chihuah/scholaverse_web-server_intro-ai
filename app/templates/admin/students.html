@@ -1,74 +1,100 @@
 {% extends "base.html" %}
 
-{% block title %}學生列表 — Scholaverse{% endblock %}
+{% block title %}學生列表{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="font-pixel text-rpg-gold text-sm sm:text-base">STUDENTS</h1>
-    <a href="/admin" class="pixel-btn-sm">返回後台</a>
+<!-- Header -->
+<div class="flex flex-col gap-3 w-full shrink-0 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex items-center gap-3">
+    <i data-lucide="user-check" class="w-6 h-6 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-xl font-black tracking-widest text-[var(--rpg-gold)]">學生列表</h1>
   </div>
+  <a href="/admin"
+     class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-text-secondary)]
+            hover:text-[var(--rpg-gold)] transition-colors">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+    返回後台
+  </a>
+</div>
 
-  <!-- Search -->
-  <form method="get" action="/admin/students" class="mb-6">
-    <div class="flex gap-2">
+<!-- Search -->
+<form method="get" action="/admin/students" class="w-full shrink-0">
+  <div class="flex gap-2">
+    <div class="flex-1 relative">
+      <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--rpg-text-secondary)]"></i>
       <input type="text" name="q" value="{{ search_query }}"
              placeholder="搜尋學號或姓名..."
-             class="flex-1 bg-rpg-bg border-2 border-rpg-brass px-3 py-2 text-rpg-text text-sm
-                    focus:border-rpg-gold focus:outline-none">
-      <button type="submit" class="pixel-btn-sm">搜尋</button>
+             class="w-full rounded pl-9 pr-3 py-2.5
+                    bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                    font-tc text-xs text-[var(--rpg-text-primary)]
+                    placeholder:text-[var(--rpg-text-secondary)]
+                    focus:outline-none focus:border-[var(--rpg-gold)]">
     </div>
-  </form>
+    <button type="submit"
+            class="flex items-center gap-2 rounded px-4 py-2
+                   bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)]
+                   font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]
+                   transition-opacity hover:opacity-90">
+      搜尋
+    </button>
+  </div>
+</form>
 
-  <!-- Student Table -->
-  <div class="pixel-panel p-4 overflow-x-auto">
-    {% if student_data %}
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="border-b-2 border-rpg-brass text-rpg-text-dim text-xs">
-          <th class="text-left py-2 px-2">學號</th>
-          <th class="text-left py-2 px-2">Gmail</th>
-          <th class="text-left py-2 px-2">姓名</th>
-          <th class="text-center py-2 px-2">角色</th>
-          <th class="text-right py-2 px-2">代幣</th>
-          <th class="text-right py-2 px-2">卡牌</th>
-          <th class="text-right py-2 px-2"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in student_data %}
-        <tr class="border-b border-rpg-brass/30 hover:bg-rpg-panel-alt/30">
-          <td class="py-2 px-2 text-rpg-gold">{{ item.student.student_id or '—' }}</td>
-          <td class="py-2 px-2 text-xs text-rpg-text-dim truncate max-w-[200px]">
-            {% if item.student.email.startswith('__unbound__') %}
-            <span class="text-rpg-text-dim">未綁定</span>
-            {% else %}{{ item.student.email }}{% endif %}
-          </td>
-          <td class="py-2 px-2">{{ item.student.name }}</td>
-          <td class="text-center py-2 px-2">
-            <span class="text-xs px-2 py-0.5 border border-rpg-brass
-              {% if item.student.role == 'teacher' %}text-rpg-gold-bright{% else %}text-rpg-text-dim{% endif %}">
-              {{ item.student.role }}
-            </span>
-          </td>
-          <td class="text-right py-2 px-2">{{ item.student.tokens }}</td>
-          <td class="text-right py-2 px-2">{{ item.card_count }}</td>
-          <td class="text-right py-2 px-2">
-            <a href="/admin/students/{{ item.student.id }}"
-               class="text-rpg-gold hover:text-rpg-gold-bright text-xs underline">
-              詳細
-            </a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="text-rpg-text-dim text-sm text-center py-4">
-      {% if search_query %}找不到符合「{{ search_query }}」的學生。{% else %}尚無學生資料。{% endif %}
-    </p>
-    {% endif %}
+<!-- Student Table -->
+<div class="flex flex-col flex-1 min-h-0">
+  <div class="flex flex-col flex-1 min-h-0 rounded bg-[var(--rpg-bg-panel)]
+              border-2 border-[var(--rpg-gold-dark)] overflow-auto scrollbar-hide">
+    <div class="min-w-[640px]">
+      <!-- Header row -->
+      <div class="flex items-center gap-4 px-5 py-3 bg-[var(--rpg-bg-card)]
+                  border-b border-[var(--rpg-gold-dark)] sticky top-0 z-10">
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">學號</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">姓名</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">Email</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">角色</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-12 text-center">代幣</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-14 text-center">卡牌數</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-10 text-center"></span>
+      </div>
+      <!-- Data rows -->
+      {% if student_data %}
+      {% for item in student_data %}
+      <div class="flex items-center gap-4 px-5 py-2.5 border-b border-[var(--rpg-bg-input)]
+                  hover:bg-[var(--rpg-bg-card)]/50
+                  {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">{{ item.student.student_id or '—' }}</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)] w-20">{{ item.student.name }}</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] flex-1 truncate">
+          {% if item.student.email.startswith('__unbound__') %}
+          <span class="text-[var(--rpg-text-secondary)] italic">未綁定</span>
+          {% else %}{{ item.student.email }}{% endif %}
+        </span>
+        <span class="font-tc text-[10px] w-16 text-center">
+          {% if item.student.role in ('teacher', 'admin') %}
+          <span class="inline-block rounded px-1.5 py-0.5 bg-[var(--rpg-gold-dark)]/50 text-[var(--rpg-gold-bright)]">{{ item.student.role }}</span>
+          {% else %}
+          <span class="text-[var(--rpg-text-secondary)]">{{ item.student.role }}</span>
+          {% endif %}
+        </span>
+        <div class="flex items-center gap-1 w-12 justify-center">
+          <i data-lucide="coins" class="w-2.5 h-2.5 text-[var(--rpg-gold-bright)]"></i>
+          <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]">{{ item.student.tokens }}</span>
+        </div>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] w-14 text-center">{{ item.card_count }}</span>
+        <a href="/admin/students/{{ item.student.id }}"
+           class="w-10 text-center font-tc text-[10px] text-[var(--rpg-gold)] hover:text-[var(--rpg-gold-bright)] underline">
+          詳細
+        </a>
+      </div>
+      {% endfor %}
+      {% else %}
+      <div class="px-5 py-8 text-center">
+        <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">
+          {% if search_query %}找不到符合「{{ search_query }}」的學生。{% else %}尚無學生資料。{% endif %}
+        </p>
+      </div>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}

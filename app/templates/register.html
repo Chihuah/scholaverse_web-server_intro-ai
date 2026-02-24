@@ -1,91 +1,144 @@
 {% extends "base.html" %}
 
-{% block title %}Scholaverse - 註冊{% endblock %}
+{% block title %}冒險者註冊{% endblock %}
 
 {% block content %}
-<div class="max-w-md mx-auto mt-8">
-  <div class="pixel-panel">
-    <h1 class="pixel-title text-sm sm:text-base mb-6 text-center">冒險者註冊</h1>
+<div class="flex flex-col items-center flex-1 min-h-0 overflow-y-auto py-4">
+  <div class="w-full max-w-md">
 
-    <p class="text-rpg-text-dim text-sm mb-6 text-center">
-      歡迎來到 Scholaverse！請輸入學號完成帳號綁定。
-    </p>
+    <!-- Header -->
+    <div class="flex flex-col items-center gap-2 mb-6">
+      <i data-lucide="shield" class="w-10 h-10 text-[var(--rpg-gold)]"></i>
+      <h1 class="font-pixel text-sm text-[var(--rpg-gold)] text-center">冒險者註冊</h1>
+      <p class="font-tc text-xs text-[var(--rpg-text-secondary)] text-center">
+        歡迎來到 Scholaverse！請輸入學號完成帳號綁定。
+      </p>
+    </div>
 
+    <!-- Error message -->
     {% if error %}
-    <div class="mb-4 p-3 border-2 border-red-500 bg-red-500/10 text-red-400 text-sm">
-      {{ error }}
+    <div class="flex items-center gap-2 rounded px-4 py-3 mb-4
+                bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-danger)]">
+      <i data-lucide="alert-triangle" class="w-4 h-4 text-[var(--rpg-danger)] shrink-0"></i>
+      <span class="font-tc text-xs text-[var(--rpg-danger)]">{{ error }}</span>
     </div>
     {% endif %}
 
+    <!-- Form panel -->
+    <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] px-6 py-5">
+
     {% if roster_student %}
     {# ── Step 2: Nickname entry ── #}
+    <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-4">
+      步驟 2 / 2 — 設定角色暱稱
+    </p>
     <form method="POST" action="/register" class="flex flex-col gap-4">
       <input type="hidden" name="step" value="2">
       <input type="hidden" name="student_id" value="{{ roster_student.student_id }}">
 
       <!-- Email (readonly) -->
-      <div>
-        <label class="block text-xs text-rpg-text-dim mb-1">Email（已認證）</label>
+      <div class="flex flex-col gap-1">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]">
+          Email（已認證）
+        </label>
         <input type="text" value="{{ email or '' }}" readonly
-               class="w-full px-3 py-2 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text-dim text-sm cursor-not-allowed">
+               class="w-full rounded px-3 py-2 font-tc text-xs
+                      bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      text-[var(--rpg-text-secondary)] opacity-70 cursor-not-allowed">
       </div>
 
       <!-- Student ID (readonly) -->
-      <div>
-        <label class="block text-xs text-rpg-text-dim mb-1">學號</label>
+      <div class="flex flex-col gap-1">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]">學號</label>
         <input type="text" value="{{ roster_student.student_id }}" readonly
-               class="w-full px-3 py-2 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text-dim text-sm cursor-not-allowed">
+               class="w-full rounded px-3 py-2 font-tc text-xs
+                      bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      text-[var(--rpg-text-secondary)] opacity-70 cursor-not-allowed">
       </div>
 
-      <!-- Name (readonly, from roster) -->
-      <div>
-        <label class="block text-xs text-rpg-text-dim mb-1">姓名</label>
+      <!-- Name (readonly) -->
+      <div class="flex flex-col gap-1">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]">姓名</label>
         <input type="text" value="{{ roster_student.name }}" readonly
-               class="w-full px-3 py-2 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text-dim text-sm cursor-not-allowed">
+               class="w-full rounded px-3 py-2 font-tc text-xs
+                      bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      text-[var(--rpg-text-secondary)] opacity-70 cursor-not-allowed">
       </div>
 
       <!-- Nickname -->
-      <div>
-        <label class="block text-xs text-rpg-gold mb-1" for="nickname">角色暱稱</label>
+      <div class="flex flex-col gap-1">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-gold)]" for="nickname">
+          角色暱稱
+        </label>
         <input type="text" id="nickname" name="nickname" required
                maxlength="18" pattern="[a-zA-Z0-9]+"
                placeholder="英數字，最多 18 字元"
-               class="w-full px-3 py-2 bg-rpg-bg-deep border-2 border-rpg-gold text-rpg-text text-sm focus:outline-none focus:border-rpg-gold-bright">
+               class="w-full rounded px-3 py-2 font-tc text-xs
+                      bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                      text-[var(--rpg-text-primary)] placeholder:text-[var(--rpg-text-secondary)]
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
       </div>
 
-      <button type="submit" class="pixel-btn pixel-btn-gold mt-2">
+      <button type="submit"
+              class="w-full flex items-center justify-center gap-2 rounded px-4 py-2.5 mt-1
+                     font-tc text-xs font-bold
+                     bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)]
+                     transition-opacity hover:opacity-90">
+        <i data-lucide="sparkles" class="w-4 h-4"></i>
         開始冒險
       </button>
-      <div class="text-center mt-3">
-        <a href="/register" class="text-rpg-text-dim text-sm hover:text-rpg-gold hover:underline">返回上一步</a>
+
+      <div class="text-center mt-1">
+        <a href="/register" class="font-tc text-xs text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)]">
+          ← 返回上一步
+        </a>
       </div>
     </form>
 
     {% else %}
     {# ── Step 1: Student ID lookup ── #}
+    <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-4">
+      步驟 1 / 2 — 輸入學號
+    </p>
     <form method="POST" action="/register" class="flex flex-col gap-4">
       <input type="hidden" name="step" value="1">
 
       <!-- Email (readonly) -->
-      <div>
-        <label class="block text-xs text-rpg-text-dim mb-1">Email（已認證）</label>
+      <div class="flex flex-col gap-1">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-text-secondary)]">
+          Email（已認證）
+        </label>
         <input type="text" value="{{ email or '' }}" readonly
-               class="w-full px-3 py-2 bg-rpg-bg-deep border-2 border-rpg-brass text-rpg-text-dim text-sm cursor-not-allowed">
+               class="w-full rounded px-3 py-2 font-tc text-xs
+                      bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      text-[var(--rpg-text-secondary)] opacity-70 cursor-not-allowed">
       </div>
 
       <!-- Student ID -->
-      <div>
-        <label class="block text-xs text-rpg-gold mb-1" for="student_id">學號</label>
+      <div class="flex flex-col gap-1">
+        <label class="font-tc text-[10px] font-bold text-[var(--rpg-gold)]" for="student_id">
+          學號
+        </label>
         <input type="text" id="student_id" name="student_id" required
                placeholder="例：411234567"
-               class="w-full px-3 py-2 bg-rpg-bg-deep border-2 border-rpg-gold text-rpg-text text-sm focus:outline-none focus:border-rpg-gold-bright">
+               class="w-full rounded px-3 py-2 font-tc text-xs
+                      bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)]
+                      text-[var(--rpg-text-primary)] placeholder:text-[var(--rpg-text-secondary)]
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
       </div>
 
-      <button type="submit" class="pixel-btn pixel-btn-gold mt-2">
+      <button type="submit"
+              class="w-full flex items-center justify-center gap-2 rounded px-4 py-2.5 mt-1
+                     font-tc text-xs font-bold
+                     bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)]
+                     transition-opacity hover:opacity-90">
+        <i data-lucide="search" class="w-4 h-4"></i>
         查詢學號
       </button>
     </form>
     {% endif %}
+
+    </div>
   </div>
 </div>
 {% endblock %}

@@ -1,66 +1,77 @@
 {% extends "base.html" %}
 
-{% block title %}Scholaverse - 角色大廳{% endblock %}
+{% block title %}角色大廳{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-  <h1 class="pixel-title text-lg sm:text-xl mb-2">角色大廳 — 全班冒險者</h1>
-  <p class="text-rpg-text-dim text-sm">所有同學的最新角色卡牌</p>
-</div>
+<!-- Header -->
+<header class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between w-full shrink-0">
+  <div class="flex items-center gap-3">
+    <i data-lucide="swords" class="w-6 h-6 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-[22px] font-black tracking-wider text-[var(--rpg-gold)]">
+      角色大廳
+    </h1>
+  </div>
+  <span class="font-tc text-sm text-[var(--rpg-text-secondary)]">
+    全班冒險者一覽
+  </span>
+</header>
+
+<p class="font-tc text-[13px] text-[var(--rpg-text-secondary)] shrink-0">
+  歡迎來到 AI 學習之旅的英雄殿堂！每張卡牌代表一位同學的最新成就。
+</p>
 
 {% if hero_cards %}
-<!-- Desktop: Grid / Mobile: Horizontal scroll -->
-<div class="hidden md:grid md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-6">
-  {% for hc in hero_cards %}
-  <div class="card-frame card-frame-{{ hc.border_style | default('copper') }} flex flex-col items-center p-3 bg-rpg-bg-deep">
-    <div class="w-full aspect-[3/4] mb-3 overflow-hidden flex items-center justify-center bg-rpg-bg">
-      {% if hc.thumbnail_url or hc.image_url %}
-      <img src="{{ hc.thumbnail_url or hc.image_url }}"
-           alt="{{ hc.student.name if hc.student else '冒險者' }}"
-           class="w-full h-full object-cover" style="image-rendering: pixelated;">
-      {% else %}
-      <img src="/static/images/placeholder/card_placeholder_thumb.svg"
-           alt="卡牌預覽" class="w-16 h-16 opacity-50">
-      {% endif %}
-    </div>
-    <div class="text-center w-full">
-      <p class="text-rpg-text text-sm font-semibold truncate">{{ hc.student.name if hc.student else '冒險者' }}</p>
-      <p class="text-rpg-gold font-mono text-xs font-bold mt-1">Lv.{{ hc.level_number | default('?') }}</p>
-    </div>
-  </div>
-  {% endfor %}
-</div>
+<!-- Heroes Grid: horizontal scroll on mobile, wrap on md+ -->
+<div class="flex gap-4 flex-1 min-h-0 w-full overflow-x-auto scrollbar-hide snap-x snap-mandatory px-2 pb-4
+            md:gap-5 md:overflow-x-visible md:flex-wrap md:justify-center md:px-0 md:pb-0 md:snap-none">
+  {% for hero_card in hero_cards %}
+    {% set border_style = hero_card.border_style if hero_card.border_style else 'copper' %}
+    {% if border_style == 'gold' %}
+      {% set border_color = 'var(--rpg-border-gold)' %}
+    {% elif border_style == 'silver' %}
+      {% set border_color = 'var(--rpg-border-silver)' %}
+    {% else %}
+      {% set border_color = 'var(--rpg-border-copper)' %}
+    {% endif %}
 
-<!-- Mobile: Horizontal scroll -->
-<div class="md:hidden card-scroll flex gap-4 pb-4 mb-6">
-  {% for hc in hero_cards %}
-  <div class="card-frame card-frame-{{ hc.border_style | default('copper') }} flex flex-col items-center p-2 bg-rpg-bg-deep flex-shrink-0 w-36">
-    <div class="w-full aspect-[3/4] mb-2 overflow-hidden flex items-center justify-center bg-rpg-bg">
-      {% if hc.thumbnail_url or hc.image_url %}
-      <img src="{{ hc.thumbnail_url or hc.image_url }}"
-           alt="{{ hc.student.name if hc.student else '冒險者' }}"
-           class="w-full h-full object-cover" style="image-rendering: pixelated;">
-      {% else %}
-      <img src="/static/images/placeholder/card_placeholder_thumb.svg"
-           alt="卡牌預覽" class="w-12 h-12 opacity-50">
+    <div class="flex flex-col items-center gap-1.5 shrink-0 snap-center">
+      <div class="w-36 h-52 md:w-[180px] md:h-[260px] rounded overflow-hidden"
+           style="border: 3px solid {{ border_color }};{% if border_style == 'gold' %} box-shadow: 0 0 8px 0 rgba(255,215,0,0.27);{% endif %}">
+        {% if hero_card.image_url %}
+        <img src="{{ hero_card.image_url }}"
+             alt="{{ hero_card.student.name if hero_card.student else '冒險者' }}"
+             class="w-full h-full object-cover">
+        {% else %}
+        <div class="w-full h-full bg-[var(--rpg-bg-card)] flex items-center justify-center">
+          <i data-lucide="image" class="w-8 h-8 text-[var(--rpg-text-secondary)] opacity-40"></i>
+        </div>
+        {% endif %}
+      </div>
+
+      <span class="font-tc text-[9px] font-black" style="color: {{ border_color }}">
+        Lv.{{ hero_card.level_number if hero_card.level_number else '?' }}
+      </span>
+
+      <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)] text-center">
+        {{ hero_card.student.name if hero_card.student else '冒險者' }}
+      </span>
+
+      {% set snap = hero_card.config_snapshot | fromjson %}
+      {% if snap.get("class") %}
+      <span class="font-tc text-[11px] text-[var(--rpg-text-secondary)] text-center">
+        {{ snap.get("class") }}
+      </span>
       {% endif %}
     </div>
-    <div class="text-center w-full">
-      <p class="text-rpg-text text-xs font-semibold truncate">{{ hc.student.name if hc.student else '冒險者' }}</p>
-      <p class="text-rpg-gold font-mono text-[10px] font-bold mt-1">Lv.{{ hc.level_number | default('?') }}</p>
-    </div>
-  </div>
   {% endfor %}
 </div>
 
 {% else %}
-<!-- No Cards Yet -->
-<div class="pixel-panel">
-  <div class="text-center py-8">
-    <p class="text-rpg-text-dim text-4xl mb-3">⚔</p>
-    <p class="text-rpg-text-dim text-sm mb-2">角色大廳目前無人進駐。</p>
-    <p class="text-rpg-text-dim text-xs">待同學們生成卡牌後，將在此展示全班最新卡牌。</p>
-  </div>
+<!-- Empty state -->
+<div class="flex flex-col items-center gap-3 py-16 text-center w-full">
+  <i data-lucide="swords" class="w-12 h-12 text-[var(--rpg-text-secondary)]"></i>
+  <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">大廳尚無冒險者</p>
+  <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">完成學習任務並生成第一張卡牌吧！</p>
 </div>
 {% endif %}
 {% endblock %}

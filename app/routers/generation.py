@@ -115,6 +115,7 @@ async def generate_card(
     try:
         job_id = await ai_worker.submit_generation(
             card_id=new_card.id,
+            student_number=user.student_id or "",
             card_config=card_config,
             learning_data=learning_data,
         )

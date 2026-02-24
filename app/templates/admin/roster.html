@@ -1,47 +1,72 @@
 {% extends "base.html" %}
 
-{% block title %}匯入修課名單 — Scholaverse{% endblock %}
+{% block title %}匯入修課名單{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-  <!-- Header -->
-  <div class="flex items-center justify-between mb-6">
-    <h1 class="font-pixel text-rpg-gold text-sm sm:text-base">ROSTER IMPORT</h1>
-    <a href="/admin" class="pixel-btn-sm">返回後台</a>
+<!-- Header -->
+<div class="flex flex-col gap-3 w-full shrink-0 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex items-center gap-3">
+    <i data-lucide="users" class="w-6 h-6 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-xl font-black tracking-widest text-[var(--rpg-gold)]">匯入修課名單</h1>
   </div>
+  <a href="/admin"
+     class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-text-secondary)]
+            hover:text-[var(--rpg-gold)] transition-colors">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+    返回後台
+  </a>
+</div>
 
-  <!-- Upload Form -->
-  <div class="pixel-panel p-6">
-    <p class="text-sm mb-4">
+<!-- Upload Form -->
+<div class="max-w-2xl w-full">
+  <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] p-6">
+    <p class="font-tc text-sm text-[var(--rpg-text-primary)] mb-3">
       上傳修課名單 CSV 檔案，建立學期初的學生清單。學生登入後可透過學號綁定帳號。
     </p>
-    <p class="text-rpg-text-dim text-xs mb-6">
-      CSV 欄位格式：id, name（學號, 姓名）
-    </p>
+
+    <!-- CSV format info -->
+    <div class="rounded px-4 py-3 mb-6 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]">
+      <div class="flex items-center gap-2 mb-2">
+        <i data-lucide="info" class="w-3.5 h-3.5 text-[var(--rpg-gold)]"></i>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)]">CSV 欄位格式</span>
+      </div>
+      <code class="font-tc text-[10px] text-[var(--rpg-text-secondary)] leading-relaxed">
+        id, name（學號, 姓名）
+      </code>
+    </div>
 
     <!-- Drop Zone -->
     <form id="roster-form" enctype="multipart/form-data">
       <div id="drop-zone"
-           class="border-2 border-dashed border-rpg-brass p-8 text-center cursor-pointer
-                  hover:border-rpg-gold transition-colors">
-        <p class="font-pixel text-rpg-gold text-xs mb-2">DROP CSV HERE</p>
-        <p class="text-rpg-text-dim text-sm mb-4">或點擊選擇檔案</p>
-        <input type="file" id="csv-file" name="file" accept=".csv"
-               class="hidden">
-        <p id="file-name" class="text-rpg-gold text-sm hidden"></p>
+           class="flex flex-col items-center justify-center gap-2 rounded
+                  border-2 border-dashed border-[var(--rpg-gold-dark)]
+                  bg-[var(--rpg-bg-card)]/30 px-6 py-10 cursor-pointer
+                  transition-colors hover:border-[var(--rpg-gold)] hover:bg-[var(--rpg-bg-card)]/50">
+        <i data-lucide="file-up" class="w-8 h-8 text-[var(--rpg-gold)]"></i>
+        <p class="font-pixel text-[10px] text-[var(--rpg-gold)]">DROP CSV HERE</p>
+        <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">或點擊選擇檔案</p>
+        <input type="file" id="csv-file" name="file" accept=".csv" class="hidden">
+        <p id="file-name" class="font-tc text-xs text-[var(--rpg-gold-bright)] hidden"></p>
       </div>
 
       <button type="submit" id="upload-btn"
-              class="pixel-btn w-full mt-4 disabled:opacity-50"
+              class="flex items-center justify-center gap-2 w-full rounded mt-4 px-4 py-3
+                     bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)]
+                     font-tc text-xs font-bold text-[var(--rpg-gold-bright)]
+                     transition-opacity hover:opacity-90 disabled:opacity-40"
               disabled>
+        <i data-lucide="upload" class="w-4 h-4"></i>
         上傳並匯入
       </button>
     </form>
 
     <!-- Results -->
-    <div id="import-result" class="hidden mt-6 pixel-panel p-4 bg-rpg-bg">
-      <h3 class="font-pixel text-rpg-gold text-xs mb-3">RESULT</h3>
-      <div id="result-content"></div>
+    <div id="import-result" class="hidden mt-6 rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)] p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="check-circle" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)]">匯入結果</span>
+      </div>
+      <div id="result-content" class="font-tc text-xs text-[var(--rpg-text-primary)]"></div>
     </div>
   </div>
 </div>
@@ -58,20 +83,18 @@
   const resultDiv = document.getElementById('import-result');
   const resultContent = document.getElementById('result-content');
 
-  // Click to select file
   dropZone.addEventListener('click', () => fileInput.click());
 
-  // Drag & drop
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
-    dropZone.classList.add('border-rpg-gold');
+    dropZone.classList.add('border-[var(--rpg-gold)]', 'bg-[var(--rpg-bg-card)]/50');
   });
   dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('border-rpg-gold');
+    dropZone.classList.remove('border-[var(--rpg-gold)]', 'bg-[var(--rpg-bg-card)]/50');
   });
   dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
-    dropZone.classList.remove('border-rpg-gold');
+    dropZone.classList.remove('border-[var(--rpg-gold)]', 'bg-[var(--rpg-bg-card)]/50');
     if (e.dataTransfer.files.length) {
       fileInput.files = e.dataTransfer.files;
       onFileSelected();
@@ -93,7 +116,7 @@
     if (!fileInput.files.length) return;
 
     uploadBtn.disabled = true;
-    uploadBtn.textContent = '匯入中...';
+    uploadBtn.innerHTML = '<span>匯入中...</span>';
 
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
@@ -107,22 +130,23 @@
 
       resultDiv.classList.remove('hidden');
       if (resp.ok) {
-        let html = `<p class="text-sm mb-2">新增 <span class="text-rpg-gold">${data.created}</span> 筆，更新 <span class="text-rpg-gold">${data.updated}</span> 筆，共 <span class="text-rpg-gold">${data.total}</span> 筆。</p>`;
+        let html = '<p class="mb-2">新增 <span class="text-[var(--rpg-gold-bright)] font-bold">' + data.created + '</span> 筆，更新 <span class="text-[var(--rpg-gold-bright)] font-bold">' + data.updated + '</span> 筆，共 <span class="text-[var(--rpg-gold-bright)] font-bold">' + data.total + '</span> 筆。</p>';
         if (data.errors && data.errors.length > 0) {
-          html += `<p class="text-red-400 text-xs mt-2">錯誤：</p><ul class="text-red-400 text-xs list-disc list-inside">`;
-          data.errors.forEach(err => { html += `<li>${err}</li>`; });
-          html += `</ul>`;
+          html += '<p class="text-[var(--rpg-danger)] mt-2 mb-1">錯誤：</p><ul class="text-[var(--rpg-danger)] list-disc list-inside">';
+          data.errors.forEach(err => { html += '<li>' + err + '</li>'; });
+          html += '</ul>';
         }
         resultContent.innerHTML = html;
       } else {
-        resultContent.innerHTML = `<p class="text-red-400 text-sm">${data.detail || '匯入失敗'}</p>`;
+        resultContent.innerHTML = '<p class="text-[var(--rpg-danger)]">' + (data.detail || '匯入失敗') + '</p>';
       }
     } catch (err) {
       resultDiv.classList.remove('hidden');
-      resultContent.innerHTML = `<p class="text-red-400 text-sm">網路錯誤：${err.message}</p>`;
+      resultContent.innerHTML = '<p class="text-[var(--rpg-danger)]">網路錯誤：' + err.message + '</p>';
     } finally {
       uploadBtn.disabled = false;
-      uploadBtn.textContent = '上傳並匯入';
+      uploadBtn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i><span>上傳並匯入</span>';
+      lucide.createIcons();
     }
   });
 })();

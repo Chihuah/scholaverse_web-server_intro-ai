@@ -1,189 +1,189 @@
 {% extends "base.html" %}
 
-{% block title %}Scholaverse - {{ unit.name if unit else '單元詳情' }}{% endblock %}
+{% block title %}{{ unit.name if unit else '單元詳情' }}{% endblock %}
 
 {% block content %}
-<!-- Back link -->
-<div class="mb-4">
-  <a href="/progress" class="text-rpg-gold hover:underline text-sm">&larr; 返回學習歷程</a>
-</div>
+<!-- Back button -->
+<a href="/progress" class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)] shrink-0">
+  <i data-lucide="arrow-left" class="w-4 h-4"></i>返回學習歷程
+</a>
 
 {% if unit %}
-<div class="mb-6">
-  <h1 class="pixel-title text-lg sm:text-xl mb-2">{{ unit.name }}</h1>
-  {% if unit.description %}
-  <p class="text-rpg-text-dim text-sm">{{ unit.description }}</p>
-  {% endif %}
-  <p class="text-rpg-text-dim text-xs mt-1">
-    {% if unit.week_start and unit.week_end %}
-    第 {{ unit.week_start }}~{{ unit.week_end }} 週
+<!-- Unit detail content -->
+<div class="flex flex-col gap-4 flex-1 min-h-0 overflow-y-auto">
+  <!-- Header with unit name + status -->
+  <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+    <h1 class="font-pixel text-sm text-[var(--rpg-gold)]">{{ unit.name }}</h1>
+    {% if record and record.completion_rate and record.completion_rate >= 80 %}
+    <div class="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1 bg-[#4ade8033] self-start">
+      <i data-lucide="check-circle-2" class="w-3 h-3 text-[var(--rpg-success)]"></i>
+      <span class="font-tc text-[9px] font-bold text-[var(--rpg-success)]">已完成</span>
+    </div>
+    {% elif record %}
+    <div class="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1 bg-[#f59e0b33] self-start">
+      <i data-lucide="clock" class="w-3 h-3 text-[var(--rpg-warning)]"></i>
+      <span class="font-tc text-[9px] font-bold text-[var(--rpg-warning)]">進行中</span>
+    </div>
+    {% else %}
+    <div class="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1 border border-[#333] self-start">
+      <span class="font-tc text-[9px] font-bold text-[var(--rpg-text-secondary)]">未解鎖</span>
+    </div>
     {% endif %}
-    &middot; 解鎖: {{ attr_label }}
-  </p>
-</div>
-
-{% if record %}
-<!-- Scores Panel -->
-<div class="pixel-panel mb-6">
-  <h2 class="pixel-title text-xs mb-4">成績明細</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-    <div class="bg-rpg-bg-deep p-4 border-2 border-rpg-brass text-center">
-      <p class="text-rpg-text-dim text-xs mb-2">預習評分</p>
-      <p class="font-mono text-2xl font-bold {% if record.preview_score is not none and record.preview_score >= 75 %}text-green-400{% elif record.preview_score is not none and record.preview_score >= 40 %}text-yellow-400{% elif record.preview_score is not none %}text-red-400{% else %}text-rpg-text-dim{% endif %}">
-        {{ record.preview_score | round(0) | int if record.preview_score is not none else '--' }}
-      </p>
-    </div>
-    <div class="bg-rpg-bg-deep p-4 border-2 border-rpg-gold text-center">
-      <p class="text-rpg-gold text-xs mb-2 font-semibold">隨堂測驗</p>
-      <p class="font-mono text-2xl font-bold {% if record.quiz_score is not none and record.quiz_score >= 75 %}text-green-400{% elif record.quiz_score is not none and record.quiz_score >= 40 %}text-yellow-400{% elif record.quiz_score is not none %}text-red-400{% else %}text-rpg-text-dim{% endif %}">
-        {{ record.quiz_score | round(0) | int if record.quiz_score is not none else '--' }}
-      </p>
-      <p class="text-rpg-text-dim text-[10px] mt-1">主要決定屬性等級</p>
-    </div>
-    <div class="bg-rpg-bg-deep p-4 border-2 border-rpg-brass text-center">
-      <p class="text-rpg-text-dim text-xs mb-2">課後練習</p>
-      <p class="font-mono text-2xl font-bold {% if record.homework_score is not none and record.homework_score >= 75 %}text-green-400{% elif record.homework_score is not none and record.homework_score >= 40 %}text-yellow-400{% elif record.homework_score is not none %}text-red-400{% else %}text-rpg-text-dim{% endif %}">
-        {{ record.homework_score | round(0) | int if record.homework_score is not none else '--' }}
-      </p>
-    </div>
   </div>
 
-  <!-- Completion Progress -->
-  {% set rate = record.completion_rate | default(0) %}
-  <div class="mb-2">
-    <div class="flex justify-between items-baseline mb-1">
-      <span class="text-sm font-semibold">整體完成度</span>
-      <span class="text-xs text-rpg-text-dim font-mono">{{ rate | round(0) | int }}%</span>
-    </div>
-    <div class="rpg-progress-bar">
-      {% if rate >= 80 %}
-      <div class="bar-fill" style="width: {{ rate }}%;"></div>
-      {% elif rate >= 40 %}
-      <div class="bar-fill bar-warning" style="width: {{ rate }}%;"></div>
-      {% else %}
-      <div class="bar-fill bar-danger" style="width: {{ rate }}%;"></div>
-      {% endif %}
+  <!-- Scores panel -->
+  {% if record %}
+  <div class="rounded px-4 py-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+    <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-3">學習成績</p>
+    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <!-- 課程完成度 -->
+      <div class="flex flex-col gap-0.5 w-full">
+        <div class="flex items-center justify-between">
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">課程完成度</span>
+          <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
+            {{ record.completion_rate | round(0) | int if record.completion_rate else 0 }}%
+          </span>
+        </div>
+        {% set cv = record.completion_rate | round(0) | int if record.completion_rate else 0 %}
+        <div class="w-full h-2 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
+          <div class="h-full rounded-sm {% if cv >= 70 %}bg-[var(--rpg-success)]{% elif cv >= 40 %}bg-[var(--rpg-warning)]{% else %}bg-[var(--rpg-danger)]{% endif %}" style="width: {{ cv }}%"></div>
+        </div>
+      </div>
+      <!-- 隨堂測驗 -->
+      <div class="flex flex-col gap-0.5 w-full">
+        <div class="flex items-center justify-between">
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">隨堂測驗</span>
+          <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
+            {{ record.quiz_score | round(0) | int if record.quiz_score else 0 }}%
+          </span>
+        </div>
+        {% set qv = record.quiz_score | round(0) | int if record.quiz_score else 0 %}
+        <div class="w-full h-2 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
+          <div class="h-full rounded-sm {% if qv >= 70 %}bg-[var(--rpg-success)]{% elif qv >= 40 %}bg-[var(--rpg-warning)]{% else %}bg-[var(--rpg-danger)]{% endif %}" style="width: {{ qv }}%"></div>
+        </div>
+      </div>
+      <!-- 課後作業 -->
+      <div class="flex flex-col gap-0.5 w-full">
+        <div class="flex items-center justify-between">
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">課後作業</span>
+          <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
+            {{ record.homework_score | round(0) | int if record.homework_score else 0 }}%
+          </span>
+        </div>
+        {% set hv = record.homework_score | round(0) | int if record.homework_score else 0 %}
+        <div class="w-full h-2 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
+          <div class="h-full rounded-sm {% if hv >= 70 %}bg-[var(--rpg-success)]{% elif hv >= 40 %}bg-[var(--rpg-warning)]{% else %}bg-[var(--rpg-danger)]{% endif %}" style="width: {{ hv }}%"></div>
+        </div>
+      </div>
+      <!-- 額外練習 -->
+      <div class="flex flex-col gap-0.5 w-full">
+        <div class="flex items-center justify-between">
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">額外練習</span>
+          <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
+            +{{ record.bonus_points | default(0) }}
+          </span>
+        </div>
+      </div>
     </div>
   </div>
-
-  {% if record.bonus_points %}
-  <p class="text-rpg-gold text-xs mt-2">額外練習點數: +{{ record.bonus_points }}</p>
   {% endif %}
-</div>
 
-<!-- Attribute Configuration Panel -->
-<div class="pixel-panel mb-6">
-  <h2 class="pixel-title text-xs mb-4">角色屬性配置</h2>
-
+  <!-- Attribute selection -->
   {% if available %}
-  <p class="text-rpg-text-dim text-xs mb-4">
-    根據你的成績解鎖了以下選項。點選即可配置角色屬性。
-  </p>
-
-  <div class="flex flex-col gap-6">
-    {% for attr_name, attr_data in available.items() %}
-    <div class="bg-rpg-bg-deep p-4 border-2 border-rpg-brass">
-      <h3 class="text-sm font-semibold text-rpg-gold mb-3">
-        {{ attr_name }}
-        <span class="text-rpg-text-dim font-normal text-xs ml-2">
-          ({{ attr_data.options | length }} 項可選)
-        </span>
-      </h3>
-
-      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-        {% for opt in attr_data.options %}
-        {% set is_chosen = chosen_attrs.get(attr_name) == opt %}
-        <button
-          class="p-2 text-xs text-center border-2 transition-colors cursor-pointer
-            {% if is_chosen %}
-              border-rpg-gold bg-rpg-panel text-rpg-gold font-semibold
-            {% else %}
-              border-rpg-brass bg-rpg-bg text-rpg-text-dim hover:border-rpg-gold hover:text-rpg-text
-            {% endif %}"
-          onclick="selectAttribute('{{ unit.code }}', '{{ attr_name }}', '{{ opt }}')"
-        >
-          {{ attr_data.labels.get(opt, opt) }}
-          {% if is_chosen %}
-          <span class="block text-[10px] text-green-400 mt-1">-- 已選擇 --</span>
+  <div class="rounded px-4 py-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
+    <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-3">
+      選擇角色屬性 — {{ attr_label }}
+    </p>
+    {% for attr_type, options in available.items() %}
+    <div class="flex flex-col gap-2 mb-4">
+      <span class="font-tc text-[10px] text-[var(--rpg-gold)]">{{ attr_type }}</span>
+      <div class="flex flex-wrap gap-2" id="attr-group-{{ attr_type | replace(' ', '-') }}">
+        {% for option in options %}
+        <button class="attr-btn font-tc text-xs rounded px-3 py-1.5 border transition-colors
+                       {% if chosen_attrs.get(attr_type) == option %}
+                         bg-[var(--rpg-gold-dark)] border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)] selected
+                       {% else %}
+                         bg-[var(--rpg-bg-panel)] border-[var(--rpg-gold-dark)] text-[var(--rpg-text-primary)]
+                         hover:border-[var(--rpg-gold)] hover:text-[var(--rpg-gold)]
+                       {% endif %}"
+                data-unit="{{ unit.code }}"
+                data-attr-type="{{ attr_type }}"
+                data-attr-value="{{ option }}"
+                onclick="selectAttr(this)">
+          {% if chosen_attrs.get(attr_type) == option %}
+          <i data-lucide="check" class="w-3 h-3 inline mr-1"></i>
           {% endif %}
+          {{ option }}
         </button>
         {% endfor %}
       </div>
     </div>
     {% endfor %}
-  </div>
-
-  {% elif record.quiz_score is none %}
-  <div class="text-center py-4">
-    <p class="text-rpg-text-dim text-sm">尚未取得隨堂測驗成績，無法解鎖屬性選項。</p>
-  </div>
-  {% else %}
-  <!-- Existing configs display (fallback) -->
-  {% if configs %}
-  <div class="space-y-4">
-    {% for cc in configs %}
-    <div class="bg-rpg-bg-deep p-4 border-2 border-rpg-brass">
-      <div class="flex items-center justify-between">
-        <span class="text-sm font-semibold text-rpg-text">{{ cc.attribute_type }}</span>
-        <span class="text-rpg-gold font-semibold text-sm">{{ cc.attribute_value }}</span>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  <div class="text-center py-4">
-    <p class="text-rpg-text-dim text-sm">尚未配置角色屬性。</p>
+    <div id="attr-result" class="font-tc text-xs mt-2"></div>
   </div>
   {% endif %}
-  {% endif %}
 </div>
-
 {% else %}
-<!-- No Record -->
-<div class="pixel-panel mb-6">
-  <div class="text-center py-8">
-    <p class="text-rpg-text-dim text-sm">尚無此單元的學習紀錄。</p>
-    <p class="text-rpg-text-dim text-xs mt-1">待教師匯入成績後將自動解鎖。</p>
-    <div class="rpg-progress-bar mt-4 max-w-md mx-auto">
-      <div class="bar-fill bar-locked" style="width: 0%;"></div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-{% else %}
-<!-- Unit Not Found -->
-<div class="pixel-panel">
-  <div class="text-center py-8">
-    <p class="text-rpg-text-dim text-sm">找不到此學習單元。</p>
-    <a href="/progress" class="pixel-btn mt-4 inline-block text-xs">返回學習歷程</a>
-  </div>
+<!-- Unit not found -->
+<div class="flex flex-col items-center gap-3 py-16 text-center">
+  <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">找不到此單元</p>
+  <a href="/progress" class="font-tc text-xs text-[var(--rpg-gold)] hover:underline">返回學習歷程</a>
 </div>
 {% endif %}
 {% endblock %}
 
 {% block scripts_extra %}
 <script>
-async function selectAttribute(unitCode, attrType, attrValue) {
+async function selectAttr(btn) {
+  const unitCode  = btn.dataset.unit;
+  const attrType  = btn.dataset.attrType;
+  const attrValue = btn.dataset.attrValue;
+  const resultEl  = document.getElementById('attr-result');
+
+  btn.disabled = true;
   try {
     const resp = await fetch('/api/config/' + unitCode, {
       method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({attribute_type: attrType, attribute_value: attrValue}),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attribute_type: attrType, attribute_value: attrValue }),
     });
     const data = await resp.json();
     if (!resp.ok) {
-      showToast(data.detail || '選擇失敗', 'error');
+      resultEl.className = 'font-tc text-xs mt-2 text-[var(--rpg-danger)]';
+      resultEl.textContent = data.detail || '儲存失敗';
       return;
     }
-    if (data.tokens_spent > 0) {
-      showToast('已選擇 ' + attrValue + '（消耗 ' + data.tokens_spent + ' 代幣）', 'success');
-    } else {
-      showToast('已選擇 ' + attrValue, 'success');
+
+    // Update sibling button styles in the same group
+    const group = btn.closest('[id^="attr-group-"]');
+    if (group) {
+      group.querySelectorAll('.attr-btn').forEach(function(b) {
+        b.classList.remove(
+          'bg-[var(--rpg-gold-dark)]', 'border-[var(--rpg-gold)]', 'text-[var(--rpg-gold-bright)]', 'selected'
+        );
+        b.classList.add(
+          'bg-[var(--rpg-bg-panel)]', 'border-[var(--rpg-gold-dark)]', 'text-[var(--rpg-text-primary)]'
+        );
+        // Remove inline check icon
+        const icon = b.querySelector('[data-lucide="check"]');
+        if (icon) icon.remove();
+      });
+      btn.classList.add(
+        'bg-[var(--rpg-gold-dark)]', 'border-[var(--rpg-gold)]', 'text-[var(--rpg-gold-bright)]', 'selected'
+      );
+      btn.classList.remove(
+        'bg-[var(--rpg-bg-panel)]', 'border-[var(--rpg-gold-dark)]', 'text-[var(--rpg-text-primary)]'
+      );
     }
-    setTimeout(() => location.reload(), 500);
+
+    const tokenMsg = data.tokens_spent > 0 ? '（扣除 ' + data.tokens_spent + ' 代幣）' : '';
+    resultEl.className = 'font-tc text-xs mt-2 text-[var(--rpg-success)]';
+    resultEl.textContent = '✓ 已選擇：' + attrValue + ' ' + tokenMsg;
   } catch (e) {
-    showToast('請求失敗', 'error');
+    resultEl.className = 'font-tc text-xs mt-2 text-[var(--rpg-danger)]';
+    resultEl.textContent = '網路錯誤，請稍後再試';
+  } finally {
+    btn.disabled = false;
   }
 }
 </script>
