@@ -130,7 +130,12 @@
           </span>
         </div>
         {% else %}
-        <span class="font-tc text-[11px] text-[var(--rpg-text-secondary)]">未登入</span>
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full shrink-0 bg-[var(--rpg-gold-dark)]/40 flex items-center justify-center">
+            <i data-lucide="eye" class="w-4 h-4 text-[var(--rpg-text-secondary)]"></i>
+          </div>
+          <span class="font-tc text-[11px] text-[var(--rpg-text-secondary)]">訪客</span>
+        </div>
         {% endif %}
       </div>
     </aside>
@@ -144,6 +149,17 @@
               onclick="openSidebar()">
         <i data-lucide="menu" class="w-6 h-6"></i>
       </button>
+
+      {% if guest_mode is defined and guest_mode and not user %}
+      <!-- Guest mode banner -->
+      <div class="flex items-center gap-2 rounded px-4 py-2.5 shrink-0
+                  bg-[var(--rpg-gold-dark)]/30 border border-[var(--rpg-gold-dark)]">
+        <i data-lucide="eye" class="w-4 h-4 text-[var(--rpg-gold)] shrink-0"></i>
+        <span class="font-tc text-xs text-[var(--rpg-gold)]">
+          訪客模式 — 您正在瀏覽示範資料，寫入操作已停用
+        </span>
+      </div>
+      {% endif %}
 
       {% block content %}{% endblock %}
     </main>

@@ -35,6 +35,9 @@ class Settings:
         os.getenv("USE_MOCK_STORAGE", "true").lower() == "true"
     )
 
+    # Guest mode (skip auth for demo/preview)
+    GUEST_MODE: bool = os.getenv("GUEST_MODE", "false").lower() == "true"
+
     # Cloudflare
     CF_AUTH_HEADER: str = os.getenv(
         "CF_AUTH_HEADER", "cf-access-authenticated-user-email"

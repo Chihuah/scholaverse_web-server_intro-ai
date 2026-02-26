@@ -8,7 +8,7 @@
   <div>
     <h1 class="font-pixel text-sm text-[var(--rpg-gold)]">我的卡牌收藏</h1>
     <p class="font-tc text-xs mt-1 text-[var(--rpg-text-secondary)]">
-      已收集 {{ cards|length }} 張卡牌
+      {% if user %}已收集 {{ cards|length }} 張卡牌{% else %}示範卡牌展示{% endif %}
     </p>
   </div>
 </div>
@@ -20,9 +20,8 @@
 
 {% if cards %}
 <!-- Card grid -->
-<div class="flex gap-4 flex-1 min-h-0 items-start
-            overflow-x-auto scrollbar-hide snap-x snap-mandatory px-2 pb-4
-            md:gap-6 md:justify-center md:overflow-x-visible md:px-0 md:pb-0 md:snap-none">
+<div class="flex flex-wrap gap-4 items-start justify-center
+            md:gap-6">
   {% set border_colors = {'copper': '#b87333', 'silver': '#c0c0c0', 'gold': '#ffd700'} %}
   {% set border_labels = {'copper': '銅色邊框', 'silver': '銀色邊框', 'gold': '金色邊框'} %}
 
@@ -31,7 +30,7 @@
     {% set border_label = border_labels.get(card.border_style, '銅色邊框') %}
 
     <a href="/cards/{{ card.id }}"
-       class="flex flex-col items-center gap-2 cursor-pointer group shrink-0 snap-center no-underline">
+       class="flex flex-col items-center gap-2 cursor-pointer group no-underline">
       <div class="w-40 h-60 md:w-[200px] md:h-[300px] rounded overflow-hidden
                   transition-transform group-hover:scale-[1.02]"
            style="border: 3px solid {{ border_color }};
@@ -68,10 +67,14 @@
 <!-- Empty state -->
 <div class="flex flex-col items-center gap-3 py-16 text-center w-full">
   <i data-lucide="image" class="w-12 h-12 text-[var(--rpg-text-secondary)]"></i>
-  <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">尚未生成任何卡牌</p>
+  <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">
+    {% if user %}尚未生成任何卡牌{% else %}目前沒有示範卡牌{% endif %}
+  </p>
+  {% if user %}
   <a href="/progress" class="font-tc text-xs text-[var(--rpg-gold)] hover:underline">
     前往學習歷程 →
   </a>
+  {% endif %}
 </div>
 {% endif %}
 {% endblock %}

@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.config import settings
+from app.dependencies import get_current_user, get_current_user_or_guest
 from app.models.card import Card
 from app.models.card_config import CardConfig
 from app.models.learning_record import LearningRecord
@@ -35,32 +36,44 @@ async def index(request: Request, db: AsyncSession = Depends(get_db)):
     user = request.state.user
 
     latest_card = None
-    records_by_unit = {}
+    records_by_unit: dict = {}
 
+    # Determine which student's data to display
+    display_student_id = None
     if user:
+        display_student_id = user.id
+    elif settings.GUEST_MODE:
+        demo_result = await db.execute(
+            select(Student)
+            .where(Student.student_id.like("DEMO%"))
+            .order_by(Student.id)
+            .limit(1)
+        )
+        demo_student = demo_result.scalar_one_or_none()
+        if demo_student:
+            display_student_id = demo_student.id
+
+    if display_student_id is not None:
         # Fetch latest card
         result = await db.execute(
             select(Card)
-            .where(Card.student_id == user.id, Card.is_latest == True)
+            .where(Card.student_id == display_student_id, Card.is_latest == True)
             .limit(1)
         )
         latest_card = result.scalar_one_or_none()
 
-        # Fetch all units ordered by sort_order
-        units_result = await db.execute(select(Unit).order_by(Unit.sort_order))
-        units = units_result.scalars().all()
-
-        # Fetch learning records for the user
+        # Fetch learning records
         lr_result = await db.execute(
             select(LearningRecord)
-            .where(LearningRecord.student_id == user.id)
+            .where(LearningRecord.student_id == display_student_id)
             .options(selectinload(LearningRecord.unit))
         )
         learning_records = lr_result.scalars().all()
         records_by_unit = {lr.unit_id: lr for lr in learning_records}
-    else:
-        units_result = await db.execute(select(Unit).order_by(Unit.sort_order))
-        units = units_result.scalars().all()
+
+    # Fetch all units ordered by sort_order
+    units_result = await db.execute(select(Unit).order_by(Unit.sort_order))
+    units = units_result.scalars().all()
 
     return templates.TemplateResponse(
         request,
@@ -70,6 +83,7 @@ async def index(request: Request, db: AsyncSession = Depends(get_db)):
             "latest_card": latest_card,
             "units": units,
             "records_by_unit": records_by_unit,
+            "guest_mode": settings.GUEST_MODE,
         },
     )
 
@@ -78,18 +92,28 @@ async def index(request: Request, db: AsyncSession = Depends(get_db)):
 async def cards_gallery(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: Student = Depends(get_current_user),
+    user: Student | None = Depends(get_current_user_or_guest),
 ):
-    """My cards gallery page."""
-    result = await db.execute(
-        select(Card)
-        .where(Card.student_id == user.id)
-        .order_by(Card.created_at.desc())
-    )
+    """My cards gallery page (guests see demo cards)."""
+    if user:
+        result = await db.execute(
+            select(Card)
+            .where(Card.student_id == user.id)
+            .order_by(Card.created_at.desc())
+        )
+    else:
+        # Guest: show all completed cards as demo
+        result = await db.execute(
+            select(Card)
+            .where(Card.status == "completed")
+            .order_by(Card.created_at.desc())
+        )
     cards = result.scalars().all()
 
     return templates.TemplateResponse(
-        request, "cards/gallery.html", {"user": user, "cards": cards}
+        request,
+        "cards/gallery.html",
+        {"user": user, "cards": cards, "guest_mode": settings.GUEST_MODE},
     )
 
 
@@ -98,16 +122,23 @@ async def card_detail(
     request: Request,
     card_id: int,
     db: AsyncSession = Depends(get_db),
-    user: Student = Depends(get_current_user),
+    user: Student | None = Depends(get_current_user_or_guest),
 ):
-    """Single card detail page."""
-    result = await db.execute(
-        select(Card).where(Card.id == card_id, Card.student_id == user.id)
-    )
+    """Single card detail page (guests can view any card)."""
+    if user:
+        result = await db.execute(
+            select(Card).where(Card.id == card_id, Card.student_id == user.id)
+        )
+    else:
+        result = await db.execute(
+            select(Card).where(Card.id == card_id)
+        )
     card = result.scalar_one_or_none()
 
     return templates.TemplateResponse(
-        request, "cards/detail.html", {"user": user, "card": card}
+        request,
+        "cards/detail.html",
+        {"user": user, "card": card, "guest_mode": settings.GUEST_MODE},
     )
 
 
@@ -125,7 +156,9 @@ async def hall(request: Request, db: AsyncSession = Depends(get_db)):
     hero_cards = result.scalars().all()
 
     return templates.TemplateResponse(
-        request, "hall.html", {"user": user, "hero_cards": hero_cards}
+        request,
+        "hall.html",
+        {"user": user, "hero_cards": hero_cards, "guest_mode": settings.GUEST_MODE},
     )
 
 
@@ -133,32 +166,52 @@ async def hall(request: Request, db: AsyncSession = Depends(get_db)):
 async def progress(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    user: Student = Depends(get_current_user),
+    user: Student | None = Depends(get_current_user_or_guest),
 ):
-    """My learning progress overview."""
+    """My learning progress overview (guests see demo data)."""
     # Fetch all units
     units_result = await db.execute(select(Unit).order_by(Unit.sort_order))
     units = units_result.scalars().all()
 
-    # Fetch learning records
-    lr_result = await db.execute(
-        select(LearningRecord)
-        .where(LearningRecord.student_id == user.id)
-        .options(selectinload(LearningRecord.unit))
-    )
-    learning_records = lr_result.scalars().all()
-    records_by_unit = {lr.unit_id: lr for lr in learning_records}
+    # Determine the student whose records to display
+    demo_student = None
+    if user:
+        display_student_id = user.id
+    elif settings.GUEST_MODE:
+        # Pick the first demo student that has learning records
+        demo_result = await db.execute(
+            select(Student)
+            .where(Student.student_id.like("DEMO%"))
+            .order_by(Student.id)
+            .limit(1)
+        )
+        demo_student = demo_result.scalar_one_or_none()
+        display_student_id = demo_student.id if demo_student else None
+    else:
+        display_student_id = None
 
-    # Fetch card configs
-    cc_result = await db.execute(
-        select(CardConfig)
-        .where(CardConfig.student_id == user.id)
-        .options(selectinload(CardConfig.unit))
-    )
-    card_configs = cc_result.scalars().all()
-    configs_by_unit = {}
-    for cc in card_configs:
-        configs_by_unit.setdefault(cc.unit_id, []).append(cc)
+    records_by_unit: dict = {}
+    configs_by_unit: dict = {}
+
+    if display_student_id is not None:
+        # Fetch learning records
+        lr_result = await db.execute(
+            select(LearningRecord)
+            .where(LearningRecord.student_id == display_student_id)
+            .options(selectinload(LearningRecord.unit))
+        )
+        learning_records = lr_result.scalars().all()
+        records_by_unit = {lr.unit_id: lr for lr in learning_records}
+
+        # Fetch card configs
+        cc_result = await db.execute(
+            select(CardConfig)
+            .where(CardConfig.student_id == display_student_id)
+            .options(selectinload(CardConfig.unit))
+        )
+        card_configs = cc_result.scalars().all()
+        for cc in card_configs:
+            configs_by_unit.setdefault(cc.unit_id, []).append(cc)
 
     # Build enriched unit data with scoring info
     unit_data = []
@@ -205,6 +258,7 @@ async def progress(
         {
             "user": user,
             "unit_data": unit_data,
+            "guest_mode": settings.GUEST_MODE,
         },
     )
 
@@ -214,9 +268,9 @@ async def unit_detail(
     request: Request,
     unit_code: str,
     db: AsyncSession = Depends(get_db),
-    user: Student = Depends(get_current_user),
+    user: Student | None = Depends(get_current_user_or_guest),
 ):
-    """Single unit detail + attribute configuration."""
+    """Single unit detail + attribute configuration (read-only for guests)."""
     # Fetch the unit
     unit_result = await db.execute(select(Unit).where(Unit.code == unit_code))
     unit = unit_result.scalar_one_or_none()
@@ -225,52 +279,72 @@ async def unit_detail(
         return templates.TemplateResponse(
             request, "learning/unit_detail.html",
             {"user": user, "unit": None, "record": None, "configs": [],
-             "chosen_attrs": {}, "available": {}, "attr_label": ""},
+             "chosen_attrs": {}, "available": {}, "attr_label": "",
+             "guest_mode": settings.GUEST_MODE},
         )
 
-    # Fetch learning record for this unit
-    lr_result = await db.execute(
-        select(LearningRecord).where(
-            LearningRecord.student_id == user.id,
-            LearningRecord.unit_id == unit.id,
+    # Determine which student's data to show
+    if user:
+        display_student_id = user.id
+    elif settings.GUEST_MODE:
+        demo_result = await db.execute(
+            select(Student)
+            .where(Student.student_id.like("DEMO%"))
+            .order_by(Student.id)
+            .limit(1)
         )
-    )
-    record = lr_result.scalar_one_or_none()
+        demo_student = demo_result.scalar_one_or_none()
+        display_student_id = demo_student.id if demo_student else None
+    else:
+        display_student_id = None
 
-    # Fetch card configs for this unit
-    cc_result = await db.execute(
-        select(CardConfig).where(
-            CardConfig.student_id == user.id,
-            CardConfig.unit_id == unit.id,
-        )
-    )
-    configs = list(cc_result.scalars().all())
-    chosen_attrs = {c.attribute_type: c.attribute_value for c in configs}
+    record = None
+    configs: list = []
+    chosen_attrs: dict = {}
+    available: dict = {}
 
-    # Get available options from scoring engine
-    available = {}
-    if record and record.quiz_score is not None:
-        # For unit_4 (weapons), look up the student's chosen class
-        character_class = None
-        if unit_code == "unit_4":
-            cls_result = await db.execute(
-                select(CardConfig).where(
-                    CardConfig.student_id == user.id,
-                    CardConfig.attribute_type == "class",
-                )
+    if display_student_id is not None:
+        # Fetch learning record for this unit
+        lr_result = await db.execute(
+            select(LearningRecord).where(
+                LearningRecord.student_id == display_student_id,
+                LearningRecord.unit_id == unit.id,
             )
-            cls_config = cls_result.scalar_one_or_none()
-            if cls_config:
-                character_class = cls_config.attribute_value
-
-        available = await get_available_options(
-            unit_code,
-            record.quiz_score,
-            homework_score=record.homework_score,
-            completion_rate=record.completion_rate,
-            character_class=character_class,
-            db=db,
         )
+        record = lr_result.scalar_one_or_none()
+
+        # Fetch card configs for this unit
+        cc_result = await db.execute(
+            select(CardConfig).where(
+                CardConfig.student_id == display_student_id,
+                CardConfig.unit_id == unit.id,
+            )
+        )
+        configs = list(cc_result.scalars().all())
+        chosen_attrs = {c.attribute_type: c.attribute_value for c in configs}
+
+        # Get available options from scoring engine (only for real users)
+        if user and record and record.quiz_score is not None:
+            character_class = None
+            if unit_code == "unit_4":
+                cls_result = await db.execute(
+                    select(CardConfig).where(
+                        CardConfig.student_id == user.id,
+                        CardConfig.attribute_type == "class",
+                    )
+                )
+                cls_config = cls_result.scalar_one_or_none()
+                if cls_config:
+                    character_class = cls_config.attribute_value
+
+            available = await get_available_options(
+                unit_code,
+                record.quiz_score,
+                homework_score=record.homework_score,
+                completion_rate=record.completion_rate,
+                character_class=character_class,
+                db=db,
+            )
 
     return templates.TemplateResponse(
         request,
@@ -283,6 +357,7 @@ async def unit_detail(
             "chosen_attrs": chosen_attrs,
             "available": available,
             "attr_label": UNIT_ATTR_LABELS.get(unit_code, unit.unlock_attribute),
+            "guest_mode": settings.GUEST_MODE,
         },
     )
 

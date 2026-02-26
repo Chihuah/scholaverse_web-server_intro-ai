@@ -43,7 +43,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request.state.user = user
 
             # Redirect unregistered users to registration page
-            if user is None and not _is_public(request.url.path):
+            # (skip redirect in guest mode so visitors can browse)
+            if (
+                user is None
+                and not _is_public(request.url.path)
+                and not settings.GUEST_MODE
+            ):
                 return RedirectResponse(url="/register", status_code=302)
 
         return await call_next(request)

@@ -3,9 +3,33 @@
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models.student import Student
 from app.services.auth import get_user_by_email
+
+
+async def get_current_user_or_guest(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> Student | None:
+    """Return the current user, or None when in guest mode.
+
+    Used by browsing-only routes so guests can view pages without auth.
+    When GUEST_MODE is off, behaves identically to ``get_current_user``.
+    """
+    user = request.state.user
+    if user is not None:
+        return user
+
+    if settings.GUEST_MODE:
+        return None
+
+    # Not guest mode — require auth
+    email = request.state.user_email
+    if not email:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    raise HTTPException(status_code=403, detail="Not registered")
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> Student:

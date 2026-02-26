@@ -8,7 +8,7 @@
   <div>
     <h1 class="font-pixel text-sm text-[var(--rpg-gold)]">冒險者儀表板</h1>
     <p class="font-tc text-xs mt-1 text-[var(--rpg-text-secondary)]">
-      歡迎回來，{{ user.name if user and user.name else '冒險者' }}！
+      {% if user %}歡迎回來，{{ user.name }}！{% else %}歡迎來到 Scholaverse！{% endif %}
     </p>
   </div>
 </div>

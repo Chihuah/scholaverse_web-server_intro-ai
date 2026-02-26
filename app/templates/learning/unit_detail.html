@@ -88,8 +88,8 @@
   </div>
   {% endif %}
 
-  <!-- Attribute selection -->
-  {% if available %}
+  <!-- Attribute selection (hidden for guests) -->
+  {% if available and user %}
   <div class="rounded px-4 py-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
     <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-3">
       選擇角色屬性 — {{ attr_label }}

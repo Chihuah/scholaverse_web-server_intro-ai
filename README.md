@@ -74,6 +74,19 @@ uv sync
 cp .env.example .env
 ```
 
+### 初始化資料庫
+
+```bash
+# 建立學習單元基本資料
+uv run python scripts/seed_data.py
+
+# 建立屬性規則
+uv run python scripts/seed_attribute_rules.py
+
+# （選用）建立訪客模式示範資料
+uv run python scripts/seed_demo_data.py
+```
+
 ### 啟動開發伺服器
 
 ```bash
@@ -85,6 +98,31 @@ uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```bash
 uv run pytest tests/ -v
 ```
+
+## 訪客模式
+
+設定 `GUEST_MODE=true` 後，未認證（或已認證但未註冊）的使用者可以瀏覽所有示範頁面，無需學號綁定。
+
+| 操作 | 訪客 | 已註冊學生 |
+|------|------|-----------|
+| 瀏覽儀表板 / 大廳 / 卡牌 / 學習歷程 | ✅ 顯示示範資料 | ✅ |
+| 選擇角色屬性、生成卡牌 | ❌ 已隱藏 / 401 | ✅ |
+| 管理後台 | ❌ 需 teacher / admin | ✅（需角色） |
+
+啟用步驟：
+
+```bash
+# 1. 在 .env 設定
+GUEST_MODE=true
+
+# 2. 匯入示範學生資料（首次需執行）
+uv run python scripts/seed_demo_data.py
+
+# 3. 重啟伺服器
+uv run uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+> **正式上線前**請將 `GUEST_MODE` 改回 `false` 並重啟伺服器。
 
 ## 學習單元與角色屬性對應
 
