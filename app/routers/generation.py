@@ -111,11 +111,12 @@ async def generate_card(
     card_config["border"] = border
     card_config["level"] = level
 
-    # 4. Mark previous latest card as not latest
-    prev_latest = await db.execute(
+    # 4. Mark previous latest card as not latest (keep track to restore on failure)
+    prev_latest_result = await db.execute(
         select(Card).where(Card.student_id == user.id, Card.is_latest == True)  # noqa: E712
     )
-    for prev_card in prev_latest.scalars().all():
+    prev_latest_cards = prev_latest_result.scalars().all()
+    for prev_card in prev_latest_cards:
         prev_card.is_latest = False
 
     # 5. Create new Card row and deduct tokens atomically
@@ -158,6 +159,14 @@ async def generate_card(
     except Exception as e:
         logger.error("Failed to submit generation for card %d: %s", new_card.id, e)
         new_card.status = "failed"
+        new_card.is_latest = False  # Don't let a failed card claim is_latest
+
+        # Restore the previous latest card so the dashboard stays correct
+        for prev_card in prev_latest_cards:
+            if prev_card.status == "completed":
+                prev_card.is_latest = True
+                break
+
         # Refund tokens if the ai-worker submission failed
         if token_cost > 0:
             user.tokens += token_cost
