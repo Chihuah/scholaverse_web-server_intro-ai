@@ -192,6 +192,7 @@ async def progress(
 
     records_by_unit: dict = {}
     configs_by_unit: dict = {}
+    card_configs: list = []
 
     if display_student_id is not None:
         # Fetch learning records
@@ -209,9 +210,15 @@ async def progress(
             .where(CardConfig.student_id == display_student_id)
             .options(selectinload(CardConfig.unit))
         )
-        card_configs = cc_result.scalars().all()
+        card_configs = list(cc_result.scalars().all())
         for cc in card_configs:
             configs_by_unit.setdefault(cc.unit_id, []).append(cc)
+
+    # Character class is needed for unit_4 weapon affinity filtering
+    character_class = next(
+        (cc.attribute_value for cc in card_configs if cc.attribute_type == "class"),
+        None,
+    )
 
     # Build enriched unit data with scoring info
     unit_data = []
@@ -239,6 +246,7 @@ async def progress(
                 record.quiz_score,
                 homework_score=record.homework_score,
                 completion_rate=record.completion_rate,
+                character_class=character_class if u.code == "unit_4" else None,
                 db=db,
             )
 
@@ -251,6 +259,8 @@ async def progress(
             "chosen_attrs": chosen_attrs,
             "available": available,
         })
+
+    has_any_available = any(d["available"] for d in unit_data)
 
     # Check if user already has non-failed cards (affects generation cost)
     has_cards = False
@@ -283,6 +293,7 @@ async def progress(
             "guest_mode": settings.GUEST_MODE,
             "has_cards": has_cards,
             "has_configs": has_configs,
+            "has_any_available": has_any_available,
             "regen_cost": 10,
         },
     )
