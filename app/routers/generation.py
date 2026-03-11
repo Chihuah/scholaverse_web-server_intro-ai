@@ -22,7 +22,7 @@ from app.models.unit import Unit
 from app.services import get_ai_worker_service
 
 # Tokens deducted when regenerating a card (first generation is free)
-CARD_REGEN_COST = 10
+CARD_REGEN_COST = 5
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +87,9 @@ async def generate_card(
     count = 0
     for record, unit in rows:
         unit_scores[unit.code] = {
-            "quiz": record.quiz_score,
-            "homework": record.homework_score,
+            "preview": record.preview_score,
             "completion": record.completion_rate,
+            "quiz": record.quiz_score,
         }
         if record.completion_rate is not None:
             total_completion += record.completion_rate

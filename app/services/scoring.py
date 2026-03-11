@@ -249,7 +249,6 @@ POSE_LABELS: dict[str, str] = {
 async def get_available_options(
     unit_code: str,
     quiz_score: float,
-    homework_score: float | None = None,
     completion_rate: float | None = None,
     *,
     character_class: str | None = None,
@@ -266,10 +265,8 @@ async def get_available_options(
         One of "unit_1" through "unit_6".
     quiz_score : float
         Quiz score (0-100), the primary driver for most attributes.
-    homework_score : float | None
-        Homework score (0-100), used by unit_2 for body type.
     completion_rate : float | None
-        Overall completion rate (0-100), used by unit_6 for level.
+        Completion rate (0-100), used by unit_2 for body type.
     character_class : str | None
         The student's chosen class (e.g. "mage"), used by unit_4 to
         filter weapon types by class affinity.
@@ -279,7 +276,7 @@ async def get_available_options(
     if db is not None:
         result = await _get_available_options_from_db(
             db, unit_code, quiz_score,
-            homework_score=homework_score,
+            completion_rate=completion_rate,
             character_class=character_class,
         )
         if result:
@@ -287,7 +284,6 @@ async def get_available_options(
 
     return _get_available_options_hardcoded(
         unit_code, quiz_score,
-        homework_score=homework_score,
         completion_rate=completion_rate,
         character_class=character_class,
     )
@@ -298,7 +294,7 @@ async def _get_available_options_from_db(
     unit_code: str,
     quiz_score: float,
     *,
-    homework_score: float | None = None,
+    completion_rate: float | None = None,
     character_class: str | None = None,
 ) -> dict:
     """Query attribute_rules table and return options dict, or {} if no rules found."""
@@ -306,11 +302,11 @@ async def _get_available_options_from_db(
 
     tier = _tier(quiz_score)
 
-    # For unit_2 body uses homework tier
+    # For unit_2 body uses completion_rate tier
     tiers_to_query = {tier}
-    if unit_code == "unit_2" and homework_score is not None:
-        hw_tier = _tier(homework_score)
-        tiers_to_query.add(hw_tier)
+    if unit_code == "unit_2" and completion_rate is not None:
+        cr_tier = _tier(completion_rate)
+        tiers_to_query.add(cr_tier)
 
     result = await db.execute(
         select(AttributeRule).where(
@@ -337,8 +333,8 @@ async def _get_available_options_from_db(
 
     for attr_type in attr_types:
         # Determine which tier to use for this attribute
-        if unit_code == "unit_2" and attr_type == "body" and homework_score is not None:
-            use_tier = _tier(homework_score)
+        if unit_code == "unit_2" and attr_type == "body" and completion_rate is not None:
+            use_tier = _tier(completion_rate)
         else:
             use_tier = tier
 
@@ -373,7 +369,6 @@ async def _get_available_options_from_db(
 def _get_available_options_hardcoded(
     unit_code: str,
     quiz_score: float,
-    homework_score: float | None = None,
     completion_rate: float | None = None,
     *,
     character_class: str | None = None,
@@ -384,8 +379,8 @@ def _get_available_options_hardcoded(
     if unit_code == "unit_1":
         return _options_unit_1(tier)
     if unit_code == "unit_2":
-        hw_tier = _tier(homework_score) if homework_score is not None else tier
-        return _options_unit_2(tier, hw_tier)
+        completion_tier = _tier(completion_rate) if completion_rate is not None else tier
+        return _options_unit_2(tier, completion_tier)
     if unit_code == "unit_3":
         return _options_unit_3(tier)
     if unit_code == "unit_4":
@@ -443,10 +438,10 @@ def _options_unit_1(tier: str) -> dict:
     }
 
 
-def _options_unit_2(quiz_tier: str, hw_tier: str) -> dict:
+def _options_unit_2(quiz_tier: str, completion_tier: str) -> dict:
     return {
         "class": _pick(CLASS_OPTIONS, CLASS_LABELS, quiz_tier),
-        "body": _pick(BODY_OPTIONS, BODY_LABELS, hw_tier),
+        "body": _pick(BODY_OPTIONS, BODY_LABELS, completion_tier),
     }
 
 

@@ -104,7 +104,7 @@
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">單元代碼</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">單元名稱</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20 text-center">平均測驗</span>
-        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20 text-center">平均作業</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20 text-center">平均完成率</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">記錄數</span>
       </div>
       <!-- Data rows -->
@@ -116,7 +116,7 @@
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">{{ u.code }}</span>
         <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] flex-1">{{ u.name }}</span>
         <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] w-20 text-center">{{ u.avg_quiz }}</span>
-        <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] w-20 text-center">{{ u.avg_homework }}</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] w-20 text-center">{{ u.avg_completion }}</span>
         <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] w-16 text-center">{{ u.record_count }}</span>
       </div>
       {% endfor %}

@@ -22,10 +22,8 @@ class LearningRecord(Base):
         Integer, ForeignKey("units.id"), nullable=False
     )
     preview_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    quiz_score: Mapped[float | None] = mapped_column(Float, nullable=True)
-    homework_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     completion_rate: Mapped[float | None] = mapped_column(Float, nullable=True)
-    bonus_points: Mapped[int] = mapped_column(Integer, default=0)
+    quiz_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     imported_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
     )

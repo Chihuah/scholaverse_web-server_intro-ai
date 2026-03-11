@@ -87,17 +87,15 @@ PLACEHOLDER_IMAGES = [
 ]
 
 
-def _random_scores() -> dict[str, float | int]:
+def _random_scores() -> dict[str, float]:
     """Generate random but realistic learning scores."""
-    quiz = round(random.uniform(40, 100), 1)
-    homework = round(random.uniform(50, 100), 1)
+    preview = round(random.uniform(50, 100), 1)
     completion = round(random.uniform(60, 100), 1)
-    bonus = random.choice([0, 0, 0, 1, 2, 3, 5])
+    quiz = round(random.uniform(40, 100), 1)
     return {
-        "quiz_score": quiz,
-        "homework_score": homework,
+        "preview_score": preview,
         "completion_rate": completion,
-        "bonus_points": bonus,
+        "quiz_score": quiz,
     }
 
 
@@ -173,7 +171,6 @@ async def seed() -> None:
                 lr = LearningRecord(
                     student_id=student.id,
                     unit_id=unit.id,
-                    preview_score=round(random.uniform(50, 95), 1),
                     **scores,
                 )
                 session.add(lr)
@@ -195,9 +192,9 @@ async def seed() -> None:
                     card_config_snapshot[attr_type] = chosen
 
                 print(
-                    f"    {unit.code}: quiz={scores['quiz_score']:.0f} "
-                    f"hw={scores['homework_score']:.0f} "
-                    f"comp={scores['completion_rate']:.0f}"
+                    f"    {unit.code}: preview={scores['preview_score']:.0f} "
+                    f"comp={scores['completion_rate']:.0f} "
+                    f"quiz={scores['quiz_score']:.0f}"
                 )
 
             # Create a card for this student

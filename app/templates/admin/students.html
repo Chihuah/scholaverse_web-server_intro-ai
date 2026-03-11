@@ -40,14 +40,44 @@
   </div>
 </form>
 
+<!-- Batch Action Bar (hidden until selection) -->
+<div id="batch-bar"
+     class="hidden shrink-0 flex items-center gap-3 rounded px-4 py-3
+            bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold)]">
+  <i data-lucide="coins" class="w-4 h-4 text-[var(--rpg-gold)] shrink-0"></i>
+  <span id="sel-count" class="font-tc text-[10px] text-[var(--rpg-gold)] shrink-0">已選 0 人</span>
+  <div class="flex items-center gap-2 flex-1">
+    <label class="font-tc text-[10px] text-[var(--rpg-text-secondary)] shrink-0">發放點數</label>
+    <input id="token-amount" type="number" min="1" max="9999" value="5" placeholder="點數"
+           class="w-24 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                  font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
+                  focus:outline-none focus:border-[var(--rpg-gold)]">
+    <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">點</span>
+  </div>
+  <button onclick="batchGrantTokens()"
+          class="flex items-center gap-1.5 rounded px-3 py-1.5
+                 bg-[var(--rpg-gold-dark)] border border-[var(--rpg-gold)]
+                 font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]
+                 transition-opacity hover:opacity-90 shrink-0">
+    <i data-lucide="gift" class="w-3 h-3"></i>
+    批次發放
+  </button>
+  <button onclick="clearSelection()"
+          class="font-tc text-[10px] text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)] shrink-0">
+    取消
+  </button>
+</div>
+
 <!-- Student Table -->
 <div class="flex flex-col flex-1 min-h-0">
   <div class="flex flex-col flex-1 min-h-0 rounded bg-[var(--rpg-bg-panel)]
               border-2 border-[var(--rpg-gold-dark)] overflow-auto scrollbar-hide">
-    <div class="min-w-[640px]">
+    <div class="min-w-[680px]">
       <!-- Header row -->
       <div class="flex items-center gap-4 px-5 py-3 bg-[var(--rpg-bg-card)]
                   border-b border-[var(--rpg-gold-dark)] sticky top-0 z-10">
+        <input type="checkbox" id="check-all" onchange="toggleAll(this)"
+               class="w-3.5 h-3.5 rounded accent-[var(--rpg-gold)] cursor-pointer shrink-0">
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">學號</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">姓名</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">Email</span>
@@ -60,13 +90,16 @@
       {% if student_data %}
       {% for item in student_data %}
       <div class="flex items-center gap-4 px-5 py-2.5 border-b border-[var(--rpg-bg-input)]
-                  hover:bg-[var(--rpg-bg-card)]/50
-                  {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
+                  hover:bg-[var(--rpg-bg-card)]/50 transition-colors
+                  {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}"
+           id="row-{{ item.student.id }}">
+        <input type="checkbox" class="student-check w-3.5 h-3.5 rounded accent-[var(--rpg-gold)] cursor-pointer shrink-0"
+               value="{{ item.student.id }}" onchange="updateSelection()">
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20">{{ item.student.student_id or '—' }}</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)] w-20">{{ item.student.name }}</span>
         <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] flex-1 truncate">
           {% if item.student.email.startswith('__unbound__') %}
-          <span class="text-[var(--rpg-text-secondary)] italic">未綁定</span>
+          <span class="italic">未綁定</span>
           {% else %}{{ item.student.email }}{% endif %}
         </span>
         <span class="font-tc text-[10px] w-16 text-center">
@@ -76,7 +109,7 @@
           <span class="text-[var(--rpg-text-secondary)]">{{ item.student.role }}</span>
           {% endif %}
         </span>
-        <div class="flex items-center gap-1 w-12 justify-center">
+        <div class="flex items-center gap-1 w-12 justify-center" id="tokens-{{ item.student.id }}">
           <i data-lucide="coins" class="w-2.5 h-2.5 text-[var(--rpg-gold-bright)]"></i>
           <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold-bright)]">{{ item.student.tokens }}</span>
         </div>
@@ -97,4 +130,82 @@
     </div>
   </div>
 </div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-4 right-4 z-50 hidden rounded px-4 py-3 font-tc text-xs font-bold transition-opacity"></div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+function getSelected() {
+  return [...document.querySelectorAll('.student-check:checked')].map(el => parseInt(el.value));
+}
+
+function updateSelection() {
+  const selected = getSelected();
+  const bar = document.getElementById('batch-bar');
+  const countEl = document.getElementById('sel-count');
+  const allCheck = document.getElementById('check-all');
+  const total = document.querySelectorAll('.student-check').length;
+
+  countEl.textContent = '已選 ' + selected.length + ' 人';
+  bar.classList.toggle('hidden', selected.length === 0);
+  allCheck.indeterminate = selected.length > 0 && selected.length < total;
+  allCheck.checked = selected.length === total && total > 0;
+}
+
+function toggleAll(cb) {
+  document.querySelectorAll('.student-check').forEach(el => { el.checked = cb.checked; });
+  updateSelection();
+}
+
+function clearSelection() {
+  document.querySelectorAll('.student-check').forEach(el => { el.checked = false; });
+  document.getElementById('check-all').checked = false;
+  updateSelection();
+}
+
+function showToast(msg, ok) {
+  const t = document.getElementById('toast');
+  t.className = 'fixed bottom-4 right-4 z-50 rounded px-4 py-3 font-tc text-xs font-bold transition-opacity ' +
+    (ok ? 'bg-[var(--rpg-success)]/20 border border-[var(--rpg-success)] text-[var(--rpg-success)]'
+        : 'bg-[var(--rpg-danger)]/20 border border-[var(--rpg-danger)] text-[var(--rpg-danger)]');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => { t.classList.add('hidden'); t.style.opacity = ''; }, 300); }, 2500);
+}
+
+async function batchGrantTokens() {
+  const ids = getSelected();
+  const amount = parseInt(document.getElementById('token-amount').value, 10);
+
+  if (!ids.length) { showToast('請先勾選學生', false); return; }
+  if (!amount || amount <= 0) { showToast('請輸入有效的發放點數', false); return; }
+
+  try {
+    const res = await fetch('/api/admin/students/batch-tokens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ student_ids: ids, amount }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.detail || '發放失敗', false); return; }
+
+    showToast(`已發放 ${amount} 點給 ${data.updated} 位學生`, true);
+
+    // Update token displays in-place
+    data.student_ids.forEach(sid => {
+      const cell = document.getElementById('tokens-' + sid);
+      if (cell) {
+        const span = cell.querySelector('span');
+        if (span) span.textContent = parseInt(span.textContent, 10) + amount;
+      }
+    });
+
+    clearSelection();
+  } catch (e) {
+    showToast('網路錯誤，請稍後再試', false);
+  }
+}
+</script>
 {% endblock %}

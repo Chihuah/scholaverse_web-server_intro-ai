@@ -230,7 +230,7 @@ async def progress(
         # Determine status
         if record is None:
             status = "locked"
-        elif rate >= 80:
+        elif record.quiz_score and record.quiz_score > 0:
             status = "completed"
         else:
             status = "in_progress"
@@ -244,7 +244,6 @@ async def progress(
             available = await get_available_options(
                 u.code,
                 record.quiz_score,
-                homework_score=record.homework_score,
                 completion_rate=record.completion_rate,
                 character_class=character_class if u.code == "unit_4" else None,
                 db=db,
@@ -294,7 +293,7 @@ async def progress(
             "has_cards": has_cards,
             "has_configs": has_configs,
             "has_any_available": has_any_available,
-            "regen_cost": 10,
+            "regen_cost": 5,
         },
     )
 
@@ -376,7 +375,6 @@ async def unit_detail(
             available = await get_available_options(
                 unit_code,
                 record.quiz_score,
-                homework_score=record.homework_score,
                 completion_rate=record.completion_rate,
                 character_class=character_class,
                 db=db,

@@ -67,9 +67,9 @@ async def admin_dashboard(
                 )
             )
         ).scalar()
-        avg_hw = (
+        avg_completion = (
             await db.execute(
-                select(func.avg(LearningRecord.homework_score)).where(
+                select(func.avg(LearningRecord.completion_rate)).where(
                     LearningRecord.unit_id == unit.id
                 )
             )
@@ -86,7 +86,7 @@ async def admin_dashboard(
             "code": unit.code,
             "name": unit.name,
             "avg_quiz": round(avg_quiz, 1) if avg_quiz else 0,
-            "avg_homework": round(avg_hw, 1) if avg_hw else 0,
+            "avg_completion": round(avg_completion, 1) if avg_completion else 0,
             "record_count": record_count,
         })
 
@@ -342,7 +342,7 @@ async def api_admin_update_record(
         existing = LearningRecord(student_id=student_pk, unit_id=unit_id)
         db.add(existing)
 
-    for field in ("preview_score", "quiz_score", "homework_score", "completion_rate"):
+    for field in ("preview_score", "completion_rate", "quiz_score"):
         if field in payload:
             val = payload[field]
             setattr(existing, field, float(val) if val is not None and val != "" else None)
@@ -356,9 +356,8 @@ async def api_admin_update_record(
         "student_id": existing.student_id,
         "unit_id": existing.unit_id,
         "preview_score": existing.preview_score,
-        "quiz_score": existing.quiz_score,
-        "homework_score": existing.homework_score,
         "completion_rate": existing.completion_rate,
+        "quiz_score": existing.quiz_score,
     }
 
 
@@ -385,6 +384,44 @@ async def api_admin_unbind_student(
     return {"status": "ok", "message": f"已解除 {student_name} 的 Email 綁定"}
 
 
+@router.post("/api/admin/students/batch-tokens")
+async def api_admin_batch_tokens(
+    payload: dict = Body(...),
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Grant tokens to multiple students at once.
+
+    Payload: { student_ids: [int, ...], amount: int }
+    """
+    student_ids = payload.get("student_ids", [])
+    amount = payload.get("amount", 0)
+
+    if not student_ids:
+        raise HTTPException(status_code=400, detail="未選擇任何學生")
+    if not isinstance(amount, int) or amount <= 0:
+        raise HTTPException(status_code=400, detail="發放點數必須為正整數")
+    if amount > 9999:
+        raise HTTPException(status_code=400, detail="單次發放上限為 9999 點")
+
+    result = await db.execute(
+        select(Student).where(Student.id.in_(student_ids))
+    )
+    students = result.scalars().all()
+
+    if not students:
+        raise HTTPException(status_code=404, detail="找不到指定學生")
+
+    updated_ids = []
+    for s in students:
+        s.tokens = (s.tokens or 0) + amount
+        s.updated_at = datetime.now(timezone.utc)
+        updated_ids.append(s.id)
+
+    await db.commit()
+    return {"updated": len(updated_ids), "amount": amount, "student_ids": updated_ids}
+
+
 @router.post("/api/admin/import")
 async def api_admin_import(
     file: UploadFile = File(...),
@@ -394,7 +431,7 @@ async def api_admin_import(
     """Import learning records from CSV.
 
     Expected CSV columns:
-    student_id, unit_code, preview_score, quiz_score, homework_score, completion_rate
+    student_id, unit_code, preview_score, completion_rate, quiz_score
     """
     if not file.filename or not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Please upload a CSV file")
@@ -436,9 +473,8 @@ async def api_admin_import(
 
             # Parse scores
             preview = _parse_float(row.get("preview_score"))
-            quiz = _parse_float(row.get("quiz_score"))
-            homework = _parse_float(row.get("homework_score"))
             completion = _parse_float(row.get("completion_rate"))
+            quiz = _parse_float(row.get("quiz_score"))
 
             # Upsert learning record
             existing_result = await db.execute(
@@ -452,12 +488,10 @@ async def api_admin_import(
             if existing:
                 if preview is not None:
                     existing.preview_score = preview
-                if quiz is not None:
-                    existing.quiz_score = quiz
-                if homework is not None:
-                    existing.homework_score = homework
                 if completion is not None:
                     existing.completion_rate = completion
+                if quiz is not None:
+                    existing.quiz_score = quiz
                 existing.updated_at = datetime.now(timezone.utc)
                 updated += 1
             else:
@@ -465,9 +499,8 @@ async def api_admin_import(
                     student_id=student.id,
                     unit_id=unit.id,
                     preview_score=preview,
-                    quiz_score=quiz,
-                    homework_score=homework,
                     completion_rate=completion,
+                    quiz_score=quiz,
                 )
                 db.add(lr)
                 created += 1

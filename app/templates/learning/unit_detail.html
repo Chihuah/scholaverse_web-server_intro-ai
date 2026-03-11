@@ -14,7 +14,7 @@
   <!-- Header with unit name + status -->
   <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
     <h1 class="font-pixel text-sm text-[var(--rpg-gold)]">{{ unit.name }}</h1>
-    {% if record and record.completion_rate and record.completion_rate >= 80 %}
+    {% if record and record.quiz_score and record.quiz_score > 0 %}
     <div class="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1 bg-[#4ade8033] self-start">
       <i data-lucide="check-circle-2" class="w-3 h-3 text-[var(--rpg-success)]"></i>
       <span class="font-tc text-[9px] font-bold text-[var(--rpg-success)]">已完成</span>
@@ -22,7 +22,7 @@
     {% elif record %}
     <div class="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1 bg-[#f59e0b33] self-start">
       <i data-lucide="clock" class="w-3 h-3 text-[var(--rpg-warning)]"></i>
-      <span class="font-tc text-[9px] font-bold text-[var(--rpg-warning)]">進行中</span>
+      <span class="font-tc text-[9px] font-bold text-[var(--rpg-warning)]">學習中</span>
     </div>
     {% else %}
     <div class="flex items-center gap-1.5 rounded-[3px] px-2.5 py-1 border border-[#333] self-start">
@@ -35,7 +35,20 @@
   {% if record %}
   <div class="rounded px-4 py-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
     <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-3">學習成績</p>
-    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div class="grid grid-cols-3 gap-3">
+      <!-- 影片預習 -->
+      <div class="flex flex-col gap-0.5 w-full">
+        <div class="flex items-center justify-between">
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">影片預習</span>
+          <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
+            {{ record.preview_score | round(0) | int if record.preview_score else 0 }}%
+          </span>
+        </div>
+        {% set pv = record.preview_score | round(0) | int if record.preview_score else 0 %}
+        <div class="w-full h-2 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
+          <div class="h-full rounded-sm {% if pv >= 70 %}bg-[var(--rpg-success)]{% elif pv >= 40 %}bg-[var(--rpg-warning)]{% else %}bg-[var(--rpg-danger)]{% endif %}" style="width: {{ pv }}%"></div>
+        </div>
+      </div>
       <!-- 課程完成度 -->
       <div class="flex flex-col gap-0.5 w-full">
         <div class="flex items-center justify-between">
@@ -49,10 +62,10 @@
           <div class="h-full rounded-sm {% if cv >= 70 %}bg-[var(--rpg-success)]{% elif cv >= 40 %}bg-[var(--rpg-warning)]{% else %}bg-[var(--rpg-danger)]{% endif %}" style="width: {{ cv }}%"></div>
         </div>
       </div>
-      <!-- 隨堂測驗 -->
+      <!-- 章節測驗 -->
       <div class="flex flex-col gap-0.5 w-full">
         <div class="flex items-center justify-between">
-          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">隨堂測驗</span>
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">章節測驗</span>
           <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
             {{ record.quiz_score | round(0) | int if record.quiz_score else 0 }}%
           </span>
@@ -60,28 +73,6 @@
         {% set qv = record.quiz_score | round(0) | int if record.quiz_score else 0 %}
         <div class="w-full h-2 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
           <div class="h-full rounded-sm {% if qv >= 70 %}bg-[var(--rpg-success)]{% elif qv >= 40 %}bg-[var(--rpg-warning)]{% else %}bg-[var(--rpg-danger)]{% endif %}" style="width: {{ qv }}%"></div>
-        </div>
-      </div>
-      <!-- 課後作業 -->
-      <div class="flex flex-col gap-0.5 w-full">
-        <div class="flex items-center justify-between">
-          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">課後作業</span>
-          <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
-            {{ record.homework_score | round(0) | int if record.homework_score else 0 }}%
-          </span>
-        </div>
-        {% set hv = record.homework_score | round(0) | int if record.homework_score else 0 %}
-        <div class="w-full h-2 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
-          <div class="h-full rounded-sm {% if hv >= 70 %}bg-[var(--rpg-success)]{% elif hv >= 40 %}bg-[var(--rpg-warning)]{% else %}bg-[var(--rpg-danger)]{% endif %}" style="width: {{ hv }}%"></div>
-        </div>
-      </div>
-      <!-- 額外練習 -->
-      <div class="flex flex-col gap-0.5 w-full">
-        <div class="flex items-center justify-between">
-          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">額外練習</span>
-          <span class="font-tc text-[10px] font-bold text-[var(--rpg-text-primary)]">
-            +{{ record.bonus_points | default(0) }}
-          </span>
         </div>
       </div>
     </div>

@@ -107,9 +107,8 @@
                   border-b border-[var(--rpg-gold-dark)] sticky top-0 z-10">
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">單元</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">預習</span>
-        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">測驗</span>
-        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">作業</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">完成率</span>
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-16 text-center">測驗</span>
         <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-14 text-center"></span>
       </div>
       <!-- Rows -->
@@ -128,17 +127,12 @@
                       font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
                       focus:outline-none focus:border-[var(--rpg-gold)]">
         <input type="number" step="0.1" min="0" max="100"
-               id="quiz-{{ unit.id }}" value="{{ rec.quiz_score if rec and rec.quiz_score is not none else '' }}"
-               class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
-                      font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
-                      focus:outline-none focus:border-[var(--rpg-gold)]">
-        <input type="number" step="0.1" min="0" max="100"
-               id="homework-{{ unit.id }}" value="{{ rec.homework_score if rec and rec.homework_score is not none else '' }}"
-               class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
-                      font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
-                      focus:outline-none focus:border-[var(--rpg-gold)]">
-        <input type="number" step="0.1" min="0" max="100"
                id="completion-{{ unit.id }}" value="{{ rec.completion_rate if rec and rec.completion_rate is not none else '' }}"
+               class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                      font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
+                      focus:outline-none focus:border-[var(--rpg-gold)]">
+        <input type="number" step="0.1" min="0" max="100"
+               id="quiz-{{ unit.id }}" value="{{ rec.quiz_score if rec and rec.quiz_score is not none else '' }}"
                class="w-16 rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
                       font-tc text-[10px] text-[var(--rpg-text-primary)] text-center
                       focus:outline-none focus:border-[var(--rpg-gold)]">
@@ -253,9 +247,8 @@ async function saveRecord(unitId) {
   };
   const payload = {
     preview_score: val('preview-' + unitId),
-    quiz_score: val('quiz-' + unitId),
-    homework_score: val('homework-' + unitId),
     completion_rate: val('completion-' + unitId),
+    quiz_score: val('quiz-' + unitId),
   };
   try {
     const res = await fetch('/api/admin/students/' + STUDENT_ID + '/records/' + unitId, {
