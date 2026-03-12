@@ -69,8 +69,9 @@ async def get_config_options(
 
     options = await get_available_options(
         unit_code=unit_code,
-        quiz_score=record.quiz_score or 0,
+        preview_score=record.preview_score,
         completion_rate=record.completion_rate,
+        quiz_score=record.quiz_score,
         character_class=character_class,
         db=db,
     )

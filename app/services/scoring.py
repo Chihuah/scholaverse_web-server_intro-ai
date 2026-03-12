@@ -24,15 +24,31 @@ TIER_C = (40, 59)
 TIER_D = (0, 39)    # Worst
 
 
+def _learning_exp(
+    preview_score: float | None,
+    completion_rate: float | None,
+    quiz_score: float | None,
+) -> float:
+    """Compute unit learning experience points.
+
+    learning_exp = preview_score * 0.2 + completion_rate * 0.4 + quiz_score * 0.4
+    Missing scores are treated as 0.
+    """
+    p = (preview_score or 0.0) * 0.2
+    c = (completion_rate or 0.0) * 0.4
+    q = (quiz_score or 0.0) * 0.4
+    return p + c + q
+
+
 def _tier(score: float) -> str:
-    """Return tier label for a numeric score."""
+    """Return tier label for a numeric score (learning_exp scale)."""
     if score >= 90:
         return "S"
-    if score >= 75:
+    if score >= 80:
         return "A"
-    if score >= 60:
+    if score >= 70:
         return "B"
-    if score >= 40:
+    if score >= 60:
         return "C"
     return "D"
 
@@ -248,13 +264,17 @@ POSE_LABELS: dict[str, str] = {
 
 async def get_available_options(
     unit_code: str,
-    quiz_score: float,
+    preview_score: float | None = None,
     completion_rate: float | None = None,
+    quiz_score: float | None = None,
     *,
     character_class: str | None = None,
     db: AsyncSession | None = None,
 ) -> dict:
     """Return available RPG attribute options for a unit given scores.
+
+    All three raw scores are combined into a single *learning_exp* value
+    which drives the tier lookup for every attribute.
 
     When *db* is provided, reads options from the attribute_rules table.
     Falls back to hardcoded constants if DB has no matching rules.
@@ -263,28 +283,30 @@ async def get_available_options(
     ----------
     unit_code : str
         One of "unit_1" through "unit_6".
-    quiz_score : float
-        Quiz score (0-100), the primary driver for most attributes.
+    preview_score : float | None
+        Video preview score (0-100). Weight: 20%.
     completion_rate : float | None
-        Completion rate (0-100), used by unit_2 for body type.
+        Course completion rate (0-100). Weight: 40%.
+    quiz_score : float | None
+        Chapter quiz score (0-100). Weight: 40%.
     character_class : str | None
         The student's chosen class (e.g. "mage"), used by unit_4 to
         filter weapon types by class affinity.
     db : AsyncSession | None
         If provided, query attribute_rules table. Otherwise use hardcoded.
     """
+    exp = _learning_exp(preview_score, completion_rate, quiz_score)
+
     if db is not None:
         result = await _get_available_options_from_db(
-            db, unit_code, quiz_score,
-            completion_rate=completion_rate,
+            db, unit_code, exp,
             character_class=character_class,
         )
         if result:
             return result
 
     return _get_available_options_hardcoded(
-        unit_code, quiz_score,
-        completion_rate=completion_rate,
+        unit_code, exp,
         character_class=character_class,
     )
 
@@ -292,26 +314,19 @@ async def get_available_options(
 async def _get_available_options_from_db(
     db: AsyncSession,
     unit_code: str,
-    quiz_score: float,
+    learning_exp: float,
     *,
-    completion_rate: float | None = None,
     character_class: str | None = None,
 ) -> dict:
     """Query attribute_rules table and return options dict, or {} if no rules found."""
     from app.models.attribute_rule import AttributeRule
 
-    tier = _tier(quiz_score)
-
-    # For unit_2 body uses completion_rate tier
-    tiers_to_query = {tier}
-    if unit_code == "unit_2" and completion_rate is not None:
-        cr_tier = _tier(completion_rate)
-        tiers_to_query.add(cr_tier)
+    tier = _tier(learning_exp)
 
     result = await db.execute(
         select(AttributeRule).where(
             AttributeRule.unit_code == unit_code,
-            AttributeRule.tier.in_(list(tiers_to_query)),
+            AttributeRule.tier == tier,
         )
     )
     rules = result.scalars().all()
@@ -319,28 +334,15 @@ async def _get_available_options_from_db(
     if not rules:
         return {}
 
-    # Index rules by (attribute_type, tier)
-    rule_map: dict[tuple[str, str], AttributeRule] = {}
-    for rule in rules:
-        rule_map[(rule.attribute_type, rule.tier)] = rule
+    # Index rules by attribute_type
+    rule_map: dict[str, AttributeRule] = {r.attribute_type: r for r in rules}
 
     output: dict = {}
 
-    # Build output for each attribute_type found
-    attr_types = sorted({r.attribute_type for r in rules}, key=lambda a: next(
-        (r.sort_order for r in rules if r.attribute_type == a), 0
-    ))
+    attr_types = sorted(rule_map.keys(), key=lambda a: rule_map[a].sort_order)
 
     for attr_type in attr_types:
-        # Determine which tier to use for this attribute
-        if unit_code == "unit_2" and attr_type == "body" and completion_rate is not None:
-            use_tier = _tier(completion_rate)
-        else:
-            use_tier = tier
-
-        rule = rule_map.get((attr_type, use_tier))
-        if rule is None:
-            continue
+        rule = rule_map[attr_type]
 
         try:
             options = json.loads(rule.options)
@@ -368,19 +370,17 @@ async def _get_available_options_from_db(
 
 def _get_available_options_hardcoded(
     unit_code: str,
-    quiz_score: float,
-    completion_rate: float | None = None,
+    learning_exp: float,
     *,
     character_class: str | None = None,
 ) -> dict:
-    """Hardcoded fallback — original implementation."""
-    tier = _tier(quiz_score)
+    """Hardcoded fallback — uses unified learning_exp tier for all attributes."""
+    tier = _tier(learning_exp)
 
     if unit_code == "unit_1":
         return _options_unit_1(tier)
     if unit_code == "unit_2":
-        completion_tier = _tier(completion_rate) if completion_rate is not None else tier
-        return _options_unit_2(tier, completion_tier)
+        return _options_unit_2(tier)
     if unit_code == "unit_3":
         return _options_unit_3(tier)
     if unit_code == "unit_4":
@@ -438,10 +438,10 @@ def _options_unit_1(tier: str) -> dict:
     }
 
 
-def _options_unit_2(quiz_tier: str, completion_tier: str) -> dict:
+def _options_unit_2(tier: str) -> dict:
     return {
-        "class": _pick(CLASS_OPTIONS, CLASS_LABELS, quiz_tier),
-        "body": _pick(BODY_OPTIONS, BODY_LABELS, completion_tier),
+        "class": _pick(CLASS_OPTIONS, CLASS_LABELS, tier),
+        "body": _pick(BODY_OPTIONS, BODY_LABELS, tier),
     }
 
 

@@ -243,8 +243,9 @@ async def progress(
         if record and record.quiz_score is not None:
             available = await get_available_options(
                 u.code,
-                record.quiz_score,
+                preview_score=record.preview_score,
                 completion_rate=record.completion_rate,
+                quiz_score=record.quiz_score,
                 character_class=character_class if u.code == "unit_4" else None,
                 db=db,
             )
@@ -374,8 +375,9 @@ async def unit_detail(
 
             available = await get_available_options(
                 unit_code,
-                record.quiz_score,
+                preview_score=record.preview_score,
                 completion_rate=record.completion_rate,
+                quiz_score=record.quiz_score,
                 character_class=character_class,
                 db=db,
             )
