@@ -69,7 +69,41 @@
       取消
     </button>
   </div>
-  <!-- Row 2: note -->
+  <!-- Row 2: achievement selector -->
+  <div class="flex items-center gap-2 flex-wrap">
+    <i data-lucide="trophy" class="w-3.5 h-3.5 text-[var(--rpg-gold)] shrink-0"></i>
+    <label class="font-tc text-[10px] text-[var(--rpg-text-secondary)] shrink-0">對應成就</label>
+    <select id="achievement-key"
+            class="flex-1 min-w-[200px] rounded px-2 py-1.5 bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                   font-tc text-[10px] text-[var(--rpg-text-primary)]
+                   focus:outline-none focus:border-[var(--rpg-gold)]">
+      <option value="">— 無對應成就（自由發放）—</option>
+      <optgroup label="一次性成就">
+        <option value="early_bird">早鳥註冊 (+30)</option>
+        <option value="survey_initial">完成期初問卷 (+20)</option>
+        <option value="survey_mid">完成期中問卷 (+20)</option>
+        <option value="survey_final">完成期末問卷 (+20)</option>
+      </optgroup>
+      <optgroup label="章節完成">
+        <option value="chapter_1_complete">完成第1章學習 (+10)</option>
+        <option value="chapter_2_complete">完成第2章學習 (+10)</option>
+        <option value="chapter_3_complete">完成第3章學習 (+10)</option>
+        <option value="chapter_4_complete">完成第4章學習 (+10)</option>
+        <option value="chapter_5_complete">完成第5章學習 (+10)</option>
+      </optgroup>
+      <optgroup label="章節前測">
+        <option value="chapter_1_pretest">完成第1章前測 (+10)</option>
+        <option value="chapter_2_pretest">完成第2章前測 (+10)</option>
+        <option value="chapter_3_pretest">完成第3章前測 (+10)</option>
+        <option value="chapter_4_pretest">完成第4章前測 (+10)</option>
+        <option value="chapter_5_pretest">完成第5章前測 (+10)</option>
+      </optgroup>
+    </select>
+    <span class="font-tc text-[9px] text-[var(--rpg-text-secondary)] opacity-60">
+      ※ 已解鎖成就的學生將自動跳過
+    </span>
+  </div>
+  <!-- Row 3: note -->
   <div class="flex items-center gap-2">
     <i data-lucide="pencil-line" class="w-3.5 h-3.5 text-[var(--rpg-text-secondary)] shrink-0"></i>
     <label class="font-tc text-[10px] text-[var(--rpg-text-secondary)] shrink-0">發放備註</label>
@@ -192,20 +226,28 @@ async function batchGrantTokens() {
   const ids = getSelected();
   const amount = parseInt(document.getElementById('token-amount').value, 10);
   const note = document.getElementById('token-note').value.trim();
+  const achievementKey = document.getElementById('achievement-key').value;
 
   if (!ids.length) { showToast('請先勾選學生', false); return; }
   if (!amount || amount <= 0) { showToast('請輸入有效的發放點數', false); return; }
 
   try {
+    const body = { student_ids: ids, amount, note };
+    if (achievementKey) body.achievement_key = achievementKey;
+
     const res = await fetch('/api/admin/students/batch-tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ student_ids: ids, amount, note }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) { showToast(data.detail || '發放失敗', false); return; }
 
-    showToast(`已發放 ${amount} 點給 ${data.updated} 位學生`, true);
+    let msg = `已發放 ${amount} 點給 ${data.updated} 位學生`;
+    if (data.skipped > 0) {
+      msg += `，跳過 ${data.skipped} 人（已有此成就）`;
+    }
+    showToast(msg, true);
 
     // Update token displays in-place
     data.student_ids.forEach(sid => {
@@ -217,6 +259,7 @@ async function batchGrantTokens() {
     });
 
     document.getElementById('token-note').value = '';
+    document.getElementById('achievement-key').value = '';
     clearSelection();
   } catch (e) {
     showToast('網路錯誤，請稍後再試', false);

@@ -446,13 +446,28 @@ async def tokens_history(
 @router.get("/profile", response_class=HTMLResponse)
 async def profile_page(
     request: Request,
+    db: AsyncSession = Depends(get_db),
     user: Student | None = Depends(get_current_user_or_guest),
 ):
     """Personal profile page."""
+    from app.models.achievement import StudentAchievement, ACHIEVEMENT_TYPES
+
+    earned_keys: dict = {}
+    if user:
+        ach_result = await db.execute(
+            select(StudentAchievement).where(StudentAchievement.student_id == user.id)
+        )
+        earned_keys = {a.achievement_key: a for a in ach_result.scalars().all()}
+
     return templates.TemplateResponse(
         request,
         "profile.html",
-        {"user": user, "guest_mode": settings.GUEST_MODE},
+        {
+            "user": user,
+            "guest_mode": settings.GUEST_MODE,
+            "earned_keys": earned_keys,
+            "achievement_types": ACHIEVEMENT_TYPES,
+        },
     )
 
 

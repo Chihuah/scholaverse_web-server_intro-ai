@@ -98,6 +98,45 @@
     </div>
   </div>
 
+  <!-- Achievement Badges -->
+  <div class="rounded border border-[var(--rpg-gold-dark)] bg-[var(--rpg-bg-panel)] overflow-hidden">
+    <div class="px-5 py-3 bg-[var(--rpg-bg-card)] border-b border-[var(--rpg-gold-dark)] flex items-center gap-2">
+      <i data-lucide="trophy" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-pixel text-[10px] text-[var(--rpg-gold)]">成就徽章</span>
+    </div>
+    <div class="p-4">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        {% for key, info in achievement_types.items() %}
+        {% set ach = earned_keys.get(key) %}
+        <div class="flex items-center gap-2 rounded px-3 py-2
+                    {% if ach %}
+                    border-2 border-[var(--rpg-gold)] bg-[var(--rpg-gold-dark)]/20
+                    {% else %}
+                    border border-[#333] bg-[var(--rpg-bg-input)] opacity-50
+                    {% endif %}">
+          {% if ach %}
+          <i data-lucide="badge-check" class="w-4 h-4 text-[var(--rpg-gold)] shrink-0"></i>
+          {% else %}
+          <i data-lucide="lock" class="w-3.5 h-3.5 text-[var(--rpg-text-secondary)] shrink-0"></i>
+          {% endif %}
+          <div class="flex flex-col min-w-0">
+            <span class="font-tc text-[10px] font-bold {% if ach %}text-[var(--rpg-gold-bright)]{% else %}text-[var(--rpg-text-secondary)]{% endif %} truncate">
+              {{ info.label }}
+            </span>
+            {% if ach %}
+            <span class="font-tc text-[9px] text-[var(--rpg-text-secondary)]">
+              {{ ach.awarded_at.strftime('%Y-%m-%d') }}
+            </span>
+            {% else %}
+            <span class="font-tc text-[9px] text-[var(--rpg-text-secondary)]">+{{ info.tokens }} 點</span>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
   <!-- Editable: nickname -->
   <div class="rounded border border-[var(--rpg-gold-dark)] bg-[var(--rpg-bg-panel)] overflow-hidden">
     <div class="px-5 py-3 bg-[var(--rpg-bg-card)] border-b border-[var(--rpg-gold-dark)]">

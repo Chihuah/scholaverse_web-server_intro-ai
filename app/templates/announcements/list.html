@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}冒險者公會告示板{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6">
+
+  <!-- Page Header -->
+  <div class="flex items-center gap-3">
+    <i data-lucide="megaphone" class="w-6 h-6 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-xl font-black tracking-widest text-[var(--rpg-gold)]">冒險者公會告示板</h1>
+  </div>
+
+  {% if not items %}
+  <!-- Empty state -->
+  <div class="flex flex-col items-center gap-3 py-16
+              rounded-lg border border-[var(--rpg-gold-dark)]/40
+              bg-[var(--rpg-bg-panel)]">
+    <i data-lucide="inbox" class="w-12 h-12 text-[var(--rpg-text-secondary)]"></i>
+    <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">目前沒有公告</p>
+  </div>
+
+  {% else %}
+  <!-- Announcements list -->
+  <div class="flex flex-col gap-3" id="announcements-list">
+    {% for item in items %}
+    {% set ann = item.announcement %}
+    {% set is_read = item.is_read %}
+    <div id="ann-{{ ann.id }}"
+         class="rounded-lg border bg-[var(--rpg-bg-panel)] p-4 flex flex-col gap-3
+                {% if is_read %}
+                  border-[var(--rpg-gold-dark)]/40
+                {% else %}
+                  border-[var(--rpg-gold)]
+                {% endif %}">
+
+      <!-- Header row: title + badge + date -->
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <!-- Unread badge -->
+          <span id="badge-{{ ann.id }}"
+                class="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-pixel
+                       bg-[var(--rpg-danger)] text-white
+                       {% if is_read %}hidden{% endif %}">
+            NEW
+          </span>
+          <h2 class="font-tc text-sm font-black text-[var(--rpg-text-primary)] leading-snug">
+            {{ ann.title }}
+          </h2>
+        </div>
+        <span class="shrink-0 font-tc text-[11px] text-[var(--rpg-text-secondary)] whitespace-nowrap">
+          {{ ann.created_at.strftime('%Y/%m/%d') }}
+        </span>
+      </div>
+
+      <!-- Content preview (first 25 chars) -->
+      <div class="font-tc text-xs text-[var(--rpg-text-secondary)] leading-relaxed">
+        <p id="preview-{{ ann.id }}">
+          {{ ann.content[:25] }}{% if ann.content | length > 25 %}…{% endif %}
+        </p>
+        <!-- Full content (hidden initially, rendered as markdown) -->
+        <div id="full-{{ ann.id }}"
+             class="hidden text-[var(--rpg-text-primary)] markdown-body"
+             data-raw="{{ ann.content | e }}"></div>
+      </div>
+
+      <!-- Read more / collapse button -->
+      {% if ann.content | length > 25 %}
+      <button id="btn-{{ ann.id }}"
+              onclick="expandAnnouncement({{ ann.id }})"
+              class="self-start font-tc text-[11px] font-bold text-[var(--rpg-gold)]
+                     hover:text-[var(--rpg-gold-bright)] transition-colors flex items-center gap-1">
+        <i data-lucide="chevron-down" class="w-3 h-3"></i>
+        <span>Read more</span>
+      </button>
+      {% else %}
+      <button id="btn-{{ ann.id }}"
+              onclick="markRead({{ ann.id }})"
+              class="hidden">
+      </button>
+      <!-- Auto-mark short announcements as read when user visits -->
+      {% if not is_read %}
+      <script>markRead({{ ann.id }});</script>
+      {% endif %}
+      {% endif %}
+
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<style>
+  .markdown-body strong { font-weight: 700; color: var(--rpg-gold-bright); }
+  .markdown-body em { font-style: italic; opacity: 0.9; }
+  .markdown-body a { color: var(--rpg-gold); text-decoration: underline; }
+  .markdown-body a:hover { color: var(--rpg-gold-bright); }
+  .markdown-body ul { list-style: disc; margin-left: 1.25rem; margin-top: 0.25rem; margin-bottom: 0.25rem; }
+  .markdown-body li { margin-bottom: 0.125rem; }
+  .markdown-body p { margin-bottom: 0.25rem; }
+</style>
+<script>
+  /* Lightweight markdown renderer — bold, italic, unordered lists, links */
+  function renderMarkdown(raw) {
+    const lines = raw.split('\n');
+    const out = [];
+    let inList = false;
+
+    for (const line of lines) {
+      // Unordered list: lines starting with - / * / + then a space
+      const listM = line.match(/^[ \t]*[-*+] (.+)$/);
+      if (listM) {
+        if (!inList) { out.push('<ul>'); inList = true; }
+        out.push(`<li>${inlineMarkdown(listM[1])}</li>`);
+        continue;
+      }
+      if (inList) { out.push('</ul>'); inList = false; }
+
+      if (line.trim() === '') {
+        out.push('<br>');
+      } else {
+        out.push(`<p>${inlineMarkdown(line)}</p>`);
+      }
+    }
+    if (inList) out.push('</ul>');
+    return out.join('');
+  }
+
+  function inlineMarkdown(text) {
+    // Escape HTML entities first
+    text = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    // Bold: **text**
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic: *text* (single asterisk, not touching another *)
+    text = text.replace(/(?<![*])\*(?![*])(.+?)(?<![*])\*(?![*])/g, '<em>$1</em>');
+    // Links: [label](url)
+    text = text.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+    return text;
+  }
+
+  async function markRead(id) {
+    try {
+      await fetch(`/api/announcements/${id}/read`, { method: 'POST' });
+    } catch (_) {}
+    const badge = document.getElementById(`badge-${id}`);
+    if (badge) badge.classList.add('hidden');
+    const card = document.getElementById(`ann-${id}`);
+    if (card) {
+      card.classList.remove('border-[var(--rpg-gold)]');
+      card.classList.add('border-[var(--rpg-gold-dark)]/40');
+    }
+  }
+
+  async function expandAnnouncement(id) {
+    const preview = document.getElementById(`preview-${id}`);
+    const full = document.getElementById(`full-${id}`);
+    const btn = document.getElementById(`btn-${id}`);
+
+    if (preview) preview.classList.add('hidden');
+    if (full) {
+      // Render markdown once (if not already rendered)
+      if (!full.dataset.rendered) {
+        full.innerHTML = renderMarkdown(full.dataset.raw || '');
+        full.dataset.rendered = '1';
+      }
+      full.classList.remove('hidden');
+    }
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="chevron-up" class="w-3 h-3"></i><span>收起</span>';
+      btn.onclick = () => collapseAnnouncement(id);
+      lucide.createIcons({ nodes: [btn] });
+    }
+
+    await markRead(id);
+  }
+
+  function collapseAnnouncement(id) {
+    const preview = document.getElementById(`preview-${id}`);
+    const full = document.getElementById(`full-${id}`);
+    const btn = document.getElementById(`btn-${id}`);
+
+    if (preview) preview.classList.remove('hidden');
+    if (full) full.classList.add('hidden');
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="chevron-down" class="w-3 h-3"></i><span>Read more</span>';
+      btn.onclick = () => expandAnnouncement(id);
+      lucide.createIcons({ nodes: [btn] });
+    }
+  }
+</script>
+{% endblock %}

@@ -8,6 +8,8 @@ from app.models.card_config import CardConfig
 from app.models.card import Card
 from app.models.token_transaction import TokenTransaction
 from app.models.attribute_rule import AttributeRule
+from app.models.announcement import Announcement, AnnouncementRead
+from app.models.achievement import StudentAchievement, ACHIEVEMENT_TYPES
 
 __all__ = [
     "Base",
@@ -18,4 +20,8 @@ __all__ = [
     "Card",
     "TokenTransaction",
     "AttributeRule",
+    "Announcement",
+    "AnnouncementRead",
+    "StudentAchievement",
+    "ACHIEVEMENT_TYPES",
 ]

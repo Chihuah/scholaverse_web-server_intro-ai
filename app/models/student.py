@@ -39,3 +39,6 @@ class Student(Base):
     token_transactions: Mapped[list["TokenTransaction"]] = relationship(
         "TokenTransaction", back_populates="student"
     )
+    achievements: Mapped[list["StudentAchievement"]] = relationship(
+        "StudentAchievement", back_populates="student", cascade="all, delete-orphan"
+    )

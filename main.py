@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.database import init_db
 from app.middleware import AuthMiddleware
-from app.routers import admin, config, generation, internal, pages, tokens
+from app.routers import admin, announcements, config, generation, internal, pages, tokens
 
 
 @asynccontextmanager
@@ -36,3 +36,4 @@ app.include_router(internal.router)
 app.include_router(config.router)
 app.include_router(tokens.router)
 app.include_router(admin.router)
+app.include_router(announcements.router)

@@ -26,3 +26,6 @@ data/
 
 # Local test account setup (contains real email/student_id)
 scripts/setup_test_accounts.py
+
+# Private research materials (not for version control)
+private/

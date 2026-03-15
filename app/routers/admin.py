@@ -181,6 +181,15 @@ async def admin_student_detail(
     )
     token_transactions = txn_result.scalars().all()
 
+    # Achievements
+    from app.models.achievement import StudentAchievement, ACHIEVEMENT_TYPES
+    ach_result = await db.execute(
+        select(StudentAchievement)
+        .where(StudentAchievement.student_id == student.id)
+    )
+    student_achievements = ach_result.scalars().all()
+    earned_keys = {a.achievement_key: a for a in student_achievements}
+
     return templates.TemplateResponse(
         request,
         "admin/student_detail.html",
@@ -191,6 +200,8 @@ async def admin_student_detail(
             "records_by_unit": records_by_unit,
             "cards": cards,
             "token_transactions": token_transactions,
+            "earned_keys": earned_keys,
+            "achievement_types": ACHIEVEMENT_TYPES,
         },
     )
 
@@ -412,13 +423,18 @@ async def api_admin_batch_tokens(
 ):
     """Grant tokens to multiple students at once.
 
-    Payload: { student_ids: [int, ...], amount: int, note: str | None }
+    Payload: { student_ids: [int, ...], amount: int, note: str | None,
+               achievement_key: str | None }
+    When achievement_key is provided, students who already have the achievement
+    are skipped (idempotent per-student).
     """
     from app.models.token_transaction import TokenTransaction
+    from app.models.achievement import StudentAchievement, ACHIEVEMENT_TYPES
 
     student_ids = payload.get("student_ids", [])
     amount = payload.get("amount", 0)
     note = payload.get("note", "").strip() or None
+    achievement_key = payload.get("achievement_key", "").strip() or None
 
     if not student_ids:
         raise HTTPException(status_code=400, detail="未選擇任何學生")
@@ -426,6 +442,8 @@ async def api_admin_batch_tokens(
         raise HTTPException(status_code=400, detail="發放點數必須為正整數")
     if amount > 9999:
         raise HTTPException(status_code=400, detail="單次發放上限為 9999 點")
+    if achievement_key and achievement_key not in ACHIEVEMENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"無效的成就代碼：{achievement_key}")
 
     result = await db.execute(
         select(Student).where(Student.id.in_(student_ids))
@@ -435,21 +453,56 @@ async def api_admin_batch_tokens(
     if not students:
         raise HTTPException(status_code=404, detail="找不到指定學生")
 
+    # If an achievement key is provided, find students who already have it
+    already_earned_ids: set[int] = set()
+    if achievement_key:
+        earned_result = await db.execute(
+            select(StudentAchievement.student_id).where(
+                StudentAchievement.achievement_key == achievement_key,
+                StudentAchievement.student_id.in_(student_ids),
+            )
+        )
+        already_earned_ids = {row[0] for row in earned_result.all()}
+
     now = datetime.now(timezone.utc)
     updated_ids = []
+    skipped_names = []
+
     for s in students:
+        if achievement_key and s.id in already_earned_ids:
+            skipped_names.append(s.name)
+            continue
+
         s.tokens = (s.tokens or 0) + amount
         s.updated_at = now
-        db.add(TokenTransaction(
+        tx_reason = note or (ACHIEVEMENT_TYPES[achievement_key]["label"] if achievement_key else None)
+        tx = TokenTransaction(
             student_id=s.id,
             amount=amount,
-            reason=note,
+            reason=tx_reason,
             created_at=now,
-        ))
+        )
+        db.add(tx)
+
+        if achievement_key:
+            await db.flush()  # get tx.id
+            db.add(StudentAchievement(
+                student_id=s.id,
+                achievement_key=achievement_key,
+                token_transaction_id=tx.id,
+                awarded_at=now,
+            ))
+
         updated_ids.append(s.id)
 
     await db.commit()
-    return {"updated": len(updated_ids), "amount": amount, "student_ids": updated_ids}
+    return {
+        "updated": len(updated_ids),
+        "skipped": len(skipped_names),
+        "skipped_names": skipped_names,
+        "amount": amount,
+        "student_ids": updated_ids,
+    }
 
 
 @router.post("/api/admin/import")
