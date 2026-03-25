@@ -80,7 +80,7 @@
     </div>
     <div class="mt-4 flex items-center justify-between">
       <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
-        註冊於 {{ student.created_at.strftime('%Y-%m-%d') if student.created_at else '—' }}
+        註冊於 {{ student.created_at | format_taipei('%Y-%m-%d') if student.created_at else '—' }}
       </span>
       <button type="button" onclick="saveStudent()"
               class="flex items-center gap-2 rounded px-4 py-2
@@ -169,7 +169,7 @@
         </span>
       </div>
       <p class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
-        {{ card.created_at.strftime('%Y-%m-%d %H:%M') if card.created_at else '—' }}
+        {{ card.created_at | format_taipei('%Y-%m-%d %H:%M') if card.created_at else '—' }}
         {% if card.is_latest %}<span class="text-[var(--rpg-gold)] ml-1">★ latest</span>{% endif %}
       </p>
       {% if card.border_style %}
@@ -204,7 +204,7 @@
       <div class="flex items-center gap-4 px-5 py-3 border-b border-[var(--rpg-bg-input)]
                   {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
         <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] w-36 shrink-0 tabular-nums">
-          {{ txn.created_at.strftime('%Y-%m-%d %H:%M') if txn.created_at else '—' }}
+          {{ txn.created_at | format_taipei('%Y-%m-%d %H:%M') if txn.created_at else '—' }}
         </span>
         <div class="w-20 shrink-0 flex justify-center">
           {% if txn.amount > 0 %}
@@ -268,7 +268,7 @@
           </span>
           {% if ach %}
           <span class="font-tc text-[9px] text-[var(--rpg-text-secondary)]">
-            {{ ach.awarded_at.strftime('%Y-%m-%d') }}
+            {{ ach.awarded_at | format_taipei('%Y-%m-%d') }}
           </span>
           {% else %}
           <span class="font-tc text-[9px] text-[var(--rpg-text-secondary)]">+{{ info.tokens }} 點</span>

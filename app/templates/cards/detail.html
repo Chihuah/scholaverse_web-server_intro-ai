@@ -10,25 +10,35 @@
 
 {% if card %}
 <!-- Two column layout -->
-<div class="flex flex-col gap-6 flex-1 min-h-0 overflow-y-auto lg:flex-row">
-  <!-- Left: Card image (portrait 880x1280) -->
-  <div class="flex justify-center shrink-0">
-    <div class="w-[220px] md:w-[264px]" style="aspect-ratio: 880/1280;">
+<div class="flex flex-col gap-6 flex-1 min-h-0 overflow-y-auto lg:flex-row lg:items-start">
+  <!-- Left: Card image (portrait 880x1280) — takes ~45% on desktop -->
+  <div class="flex justify-center shrink-0 lg:w-[45%]">
+    <div class="w-full max-w-[480px]" style="aspect-ratio: 880/1280;">
       {% set border_colors = {'copper': '#b87333', 'silver': '#c0c0c0', 'gold': '#ffd700'} %}
       {% set bc = border_colors.get(card.border_style, '#b87333') %}
-      <div class="w-full h-full rounded overflow-hidden"
+      <div id="card-image-container" class="w-full h-full rounded overflow-hidden"
            style="border: 3px solid {{ bc }};
                   {% if card.border_style == 'gold' %}box-shadow: 0 0 16px 3px rgba(255,215,0,0.4);{% endif %}">
         {% if card.image_url %}
-        <img src="{{ card.image_url }}" alt="卡牌" class="w-full h-full object-cover">
+        <img id="card-img" src="{{ card.image_url }}" alt="卡牌" class="w-full h-full object-cover">
+        {% elif card.status in ('pending', 'generating') %}
+        <!-- Generating state -->
+        <div id="card-generating" class="w-full h-full flex flex-col items-center justify-center gap-3
+                                          bg-[var(--rpg-bg-panel)]">
+          <svg class="animate-spin w-8 h-8 text-[var(--rpg-gold)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+          </svg>
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] text-center px-2">AI 生成中…<br>請稍候</span>
+        </div>
         {% else %}
-        <img src="/static/images/placeholder/card-gold-1.png" alt="卡牌" class="w-full h-full object-cover">
+        <img id="card-img" src="/static/images/placeholder/card-gold-1.png" alt="卡牌" class="w-full h-full object-cover">
         {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- Right: Card details -->
+  <!-- Right: Card details — takes remaining ~55% on desktop -->
   <div class="flex flex-col gap-4 flex-1 rounded px-5 py-4
               bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
     <div>
@@ -36,7 +46,7 @@
         Lv.{{ card.level_number }} 角色卡牌
       </h1>
       <p class="font-tc text-xs text-[var(--rpg-text-secondary)] mt-1">
-        生成時間：{{ card.created_at.strftime('%Y-%m-%d %H:%M') if card.created_at else '--' }}
+        生成時間：{{ card.created_at | format_taipei('%Y-%m-%d %H:%M') if card.created_at else '--' }}
       </p>
     </div>
 
@@ -72,5 +82,49 @@
   <p class="font-tc text-sm text-[var(--rpg-text-secondary)]">找不到此卡牌</p>
   <a href="/cards" class="font-tc text-xs text-[var(--rpg-gold)] hover:underline">返回卡牌收藏</a>
 </div>
+{% endif %}
+
+{% if card and card.status in ('pending', 'generating') %}
+<script>
+(function() {
+  const CARD_ID = {{ card.id }};
+  const POLL_INTERVAL = 2000;
+  let timer = null;
+
+  async function pollStatus() {
+    try {
+      const resp = await fetch(`/api/cards/${CARD_ID}/status`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      if (data.status === 'completed' && data.image_url) {
+        clearInterval(timer);
+        // Replace spinner with actual image
+        const container = document.getElementById('card-image-container');
+        const spinner = document.getElementById('card-generating');
+        if (spinner) spinner.remove();
+        const img = document.createElement('img');
+        img.id = 'card-img';
+        img.src = data.image_url;
+        img.alt = '卡牌';
+        img.className = 'w-full h-full object-cover';
+        container.appendChild(img);
+      } else if (data.status === 'failed') {
+        clearInterval(timer);
+        const spinner = document.getElementById('card-generating');
+        if (spinner) {
+          spinner.innerHTML = '<span class="font-tc text-[10px] text-[var(--rpg-danger)] text-center px-2">生成失敗<br>請重試</span>';
+        }
+      }
+    } catch (e) {
+      // network error — keep polling
+    }
+  }
+
+  timer = setInterval(pollStatus, POLL_INTERVAL);
+  // Also poll immediately in case generation already finished
+  pollStatus();
+})();
+</script>
 {% endif %}
 {% endblock %}

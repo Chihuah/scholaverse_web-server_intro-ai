@@ -102,7 +102,7 @@
             {{ item.read_count }} 人已讀
           </span>
           <span class="font-tc text-[11px] text-[var(--rpg-text-secondary)]">
-            {{ ann.created_at.strftime('%Y/%m/%d %H:%M') }}
+            {{ ann.created_at | format_taipei('%Y/%m/%d %H:%M') }}
           </span>
           <!-- Edit button -->
           <button onclick="toggleEditForm({{ ann.id }})"

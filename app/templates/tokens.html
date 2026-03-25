@@ -52,7 +52,7 @@
 
         <!-- Timestamp -->
         <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] w-36 shrink-0 tabular-nums">
-          {{ txn.created_at.strftime('%Y-%m-%d %H:%M') if txn.created_at else '—' }}
+          {{ txn.created_at | format_taipei('%Y-%m-%d %H:%M') if txn.created_at else '—' }}
         </span>
 
         <!-- Amount badge -->

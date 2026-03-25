@@ -48,7 +48,7 @@
           </h2>
         </div>
         <span class="shrink-0 font-tc text-[11px] text-[var(--rpg-text-secondary)] whitespace-nowrap">
-          {{ ann.created_at.strftime('%Y/%m/%d') }}
+          {{ ann.created_at | format_taipei('%Y/%m/%d') }}
         </span>
       </div>
 
