@@ -5,7 +5,7 @@ import io
 import json
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 
@@ -1246,16 +1246,41 @@ async def admin_generation_history(
 
     rows = (await db.execute(query)).all()
 
+    _TZ_TAIPEI = timezone(timedelta(hours=8))
+
+    def _to_local(dt):
+        if dt is None:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_TZ_TAIPEI)
+
+    def _fmt(dt):
+        return dt.strftime('%m-%d %H:%M:%S') if dt else None
+
+    def _duration(start, end):
+        if start is None or end is None:
+            return None
+        delta = end - start
+        secs = int(delta.total_seconds())
+        if secs < 0:
+            return None
+        m, s = divmod(secs, 60)
+        return f"{m}m {s:02d}s" if m else f"{s}s"
+
     records = []
     for card, sid, name in rows:
+        start_local = _to_local(card.created_at)
+        end_local   = _to_local(card.generated_at)
         records.append({
             "card_id": card.id,
             "job_id": card.job_id,
             "student_id": sid,
             "student_name": name,
             "status": card.status,
-            "created_at": card.created_at,
-            "generated_at": card.generated_at,
+            "created_at_fmt": _fmt(start_local),
+            "generated_at_fmt": _fmt(end_local),
+            "duration": _duration(start_local, end_local),
         })
 
     return templates.TemplateResponse(

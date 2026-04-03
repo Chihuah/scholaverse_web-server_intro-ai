@@ -18,7 +18,7 @@
     </div>
   </div>
   <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
-    共 {{ records | length }} 筆紀錄
+    共 {{ records | length }} 筆紀錄（時間 UTC+8）
   </span>
 </div>
 
@@ -46,15 +46,16 @@
 <!-- History table -->
 <div class="flex flex-col flex-1 min-h-0 rounded bg-[var(--rpg-bg-panel)]
             border-2 border-[var(--rpg-gold-dark)] overflow-auto scrollbar-hide">
-  <div class="min-w-[700px]">
+  <div class="min-w-[820px]">
     <!-- Header row -->
     <div class="flex items-center gap-3 px-5 py-3 bg-[var(--rpg-bg-card)]
                 border-b border-[var(--rpg-gold-dark)] sticky top-0 z-10">
-      <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-28">Job ID</span>
-      <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-28">學號</span>
+      <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-24">Job ID</span>
+      <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-24">學號</span>
       <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] flex-1">姓名</span>
       <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-36 text-center">開始時間</span>
       <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-36 text-center">完成時間</span>
+      <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20 text-center">生成耗時</span>
       <span class="font-tc text-[10px] font-bold text-[var(--rpg-gold)] w-20 text-center">狀態</span>
     </div>
 
@@ -65,23 +66,24 @@
                 hover:bg-[var(--rpg-bg-card)]/50
                 {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
       <!-- Job ID -->
-      <span class="font-mono text-[9px] text-[var(--rpg-text-secondary)] w-28 truncate"
+      <span class="font-mono text-[9px] text-[var(--rpg-text-secondary)] w-24 truncate"
             title="{{ r.job_id }}">{{ r.job_id[:8] }}..</span>
       <!-- Student ID -->
-      <span class="font-tc text-[10px] text-[var(--rpg-gold)] w-28">{{ r.student_id }}</span>
+      <span class="font-tc text-[10px] text-[var(--rpg-gold)] w-24">{{ r.student_id }}</span>
       <!-- Name -->
       <span class="font-tc text-[10px] text-[var(--rpg-text-primary)] flex-1">{{ r.student_name }}</span>
-      <!-- Created at -->
-      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] w-36 text-center">
-        {% if r.created_at %}
-        {{ r.created_at.strftime('%m-%d %H:%M') }}
-        {% else %}--{% endif %}
+      <!-- Created at (UTC+8) -->
+      <span class="font-mono text-[9px] text-[var(--rpg-text-secondary)] w-36 text-center">
+        {{ r.created_at_fmt or '--' }}
       </span>
-      <!-- Generated at -->
-      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] w-36 text-center">
-        {% if r.generated_at %}
-        {{ r.generated_at.strftime('%H:%M') }}
-        {% else %}--{% endif %}
+      <!-- Generated at (UTC+8) -->
+      <span class="font-mono text-[9px] text-[var(--rpg-text-secondary)] w-36 text-center">
+        {{ r.generated_at_fmt or '--' }}
+      </span>
+      <!-- Duration -->
+      <span class="font-mono text-[9px] w-20 text-center
+                   {% if r.duration %}text-[var(--rpg-gold)]{% else %}text-[var(--rpg-text-secondary)]{% endif %}">
+        {{ r.duration or '--' }}
       </span>
       <!-- Status badge -->
       <div class="w-20 flex justify-center">
