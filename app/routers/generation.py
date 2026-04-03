@@ -125,17 +125,19 @@ async def generate_card(
     }
 
     # 3. Determine border and level from scoring rules
-    from app.services.scoring import calculate_card_level, determine_border_style
+    from app.services.scoring import calculate_card_level, determine_border_style, roll_rarity
 
     level = calculate_card_level(total_exp_sum)
     border = determine_border_style(count * 3)  # rough estimate: ~3 weeks per unit
 
-    card_config["border"] = border
-    card_config["level"] = max(1, min(10, math.ceil(level / 10)))
+    card_config["border"] = "copper"   # 暫定一律銅色，後續依設計決定
+    card_config["level"] = level        # 傳送完整 1~100 等級給 ai-worker
 
-    # expression / pose come from unit_6 (自主學習); supply defaults if not yet configured
-    card_config.setdefault("expression", "calm")
-    card_config.setdefault("pose", "standing")
+    # 稀有度：依 LV 機率骰選，存入 card_config 供 ai-worker 使用
+    rarity = roll_rarity(level)
+    card_config["rarity"] = rarity
+
+    # expression / pose 未解鎖時不填預設值，由 ai-worker LLM 創意發揮
 
     # 4. Mark previous latest card as not latest (keep track to restore on failure)
     prev_latest_result = await db.execute(
@@ -159,8 +161,9 @@ async def generate_card(
         student_id=user.id,
         config_snapshot=config_snapshot,
         status="pending",
-        border_style=border,
+        border_style="copper",
         level_number=level,
+        rarity=rarity,
         is_latest=True,
         is_display=True,
     )

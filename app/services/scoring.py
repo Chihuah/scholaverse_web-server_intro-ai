@@ -393,6 +393,36 @@ def _get_available_options_hardcoded(
     return {}
 
 
+
+import random as _random
+
+# ---------------------------------------------------------------------------
+# 稀有度抽選（依 LV 機率骰選 N/R/SR/SSR/UR）
+# ---------------------------------------------------------------------------
+
+# (level_min, level_max) → {rarity: weight}
+# 調整這張表即可改變機率分布（weight 總和不必為 100，相對比例即可）
+RARITY_TABLE: list[tuple[int, int, dict]] = [
+    (1,  20,  {"N": 70, "R": 25, "SR": 5,  "SSR": 0,  "UR": 0}),
+    (21, 40,  {"N": 40, "R": 40, "SR": 15, "SSR": 5,  "UR": 0}),
+    (41, 60,  {"N": 15, "R": 35, "SR": 30, "SSR": 15, "UR": 5}),
+    (61, 80,  {"N": 5,  "R": 20, "SR": 35, "SSR": 30, "UR": 10}),
+    (81, 100, {"N": 0,  "R": 10, "SR": 25, "SSR": 40, "UR": 25}),
+]
+
+
+def roll_rarity(level: int) -> str:
+    """依 LV 骰選稀有度。LV 越高，高稀有度機率越大。"""
+    level = max(1, min(100, level))
+    weights: dict = {"N": 70, "R": 25, "SR": 5, "SSR": 0, "UR": 0}  # default
+    for lo, hi, w in RARITY_TABLE:
+        if lo <= level <= hi:
+            weights = w
+            break
+    rarities = [r for r, w in weights.items() if w > 0]
+    probs = [weights[r] for r in rarities]
+    return _random.choices(rarities, weights=probs, k=1)[0]
+
 def calculate_card_level(total_exp_sum: float) -> int:
     """Map total EXP sum across 6 units (0–600) to level 1–100.
 
@@ -408,14 +438,8 @@ def calculate_card_level(total_exp_sum: float) -> int:
 def determine_border_style(weeks_completed: int) -> str:
     """Return border style based on learning weeks completed.
 
-    - 1-6 weeks  → copper
-    - 7-12 weeks → silver
-    - 13+ weeks  → gold
+    暫時一律回傳 copper，待後續依單元六或稀有度決定邊框設計。
     """
-    if weeks_completed >= 13:
-        return "gold"
-    if weeks_completed >= 7:
-        return "silver"
     return "copper"
 
 

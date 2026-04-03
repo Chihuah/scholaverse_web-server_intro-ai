@@ -44,7 +44,20 @@
               bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
     <div>
       <h1 class="font-pixel text-xs text-[var(--rpg-gold)]">
+{%- set rarity_styles = {
+            'N':   'bg-gray-700 border-gray-500 text-gray-300',
+            'R':   'bg-blue-900 border-blue-500 text-blue-300',
+            'SR':  'bg-purple-900 border-purple-500 text-purple-300',
+            'SSR': 'bg-yellow-900 border-yellow-500 text-yellow-300',
+            'UR':  'bg-red-900 border-red-500 text-red-300',
+          } -%}
         Lv.{{ card.level_number }} 角色卡牌
+        {% if card.rarity %}
+        <span class="ml-2 px-2 py-0.5 rounded border text-[10px] font-black font-pixel
+                     {{ rarity_styles.get(card.rarity, rarity_styles['N']) }}">
+          {{ card.rarity }}
+        </span>
+        {% endif %}
       </h1>
       <p class="font-tc text-xs text-[var(--rpg-text-secondary)] mt-1">
         生成時間：{{ card.created_at | format_taipei('%Y-%m-%d %H:%M') if card.created_at else '--' }}
