@@ -146,6 +146,13 @@ async def generate_card(
         prev_card.is_latest = False
         prev_card.is_display = False
 
+    # Also clear any other stale is_display flags (guards against legacy data)
+    stale_display_result = await db.execute(
+        select(Card).where(Card.student_id == user.id, Card.is_display == True)  # noqa: E712
+    )
+    for stale_card in stale_display_result.scalars().all():
+        stale_card.is_display = False
+
     # 5. Create new Card row and deduct tokens atomically
     config_snapshot = json.dumps(card_config, ensure_ascii=False)
     new_card = Card(
