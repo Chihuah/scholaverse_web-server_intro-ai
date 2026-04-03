@@ -59,7 +59,7 @@
               bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]
               overflow-y-auto md:px-6 md:py-5">
     <h2 class="font-tc text-xs font-black tracking-widest text-[var(--rpg-gold)] shrink-0">
-      學習任務進度
+      學習任務經驗值
     </h2>
 
     {% for unit in units %}
@@ -80,7 +80,7 @@
             {{ unit.name }}
           </span>
           {% if status != 'locked' %}
-          <span class="font-tc text-[8px] font-black
+          <span class="font-tc text-[10px] font-black
                        {% if status == 'success' %}text-[var(--rpg-success)]{% else %}text-[var(--rpg-warning)]{% endif %}">
             {{ rate }}%
           </span>
