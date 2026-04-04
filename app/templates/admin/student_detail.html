@@ -161,26 +161,61 @@
     <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">卡牌（{{ cards | length }}）</span>
   </div>
   {% if cards %}
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
     {% for card in cards %}
-    <div class="rounded p-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]">
-      <div class="flex justify-between items-start mb-2">
-        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)]">#{{ card.id }}</span>
-        <span class="inline-block rounded px-1.5 py-0.5 font-tc text-xs font-bold
-          {% if card.status == 'completed' %}bg-[var(--rpg-success)]/20 text-[var(--rpg-success)]
-          {% elif card.status == 'generating' %}bg-[var(--rpg-warning)]/20 text-[var(--rpg-warning)]
-          {% elif card.status == 'failed' %}bg-[var(--rpg-danger)]/20 text-[var(--rpg-danger)]
-          {% else %}bg-[var(--rpg-bg-card)] text-[var(--rpg-text-secondary)]{% endif %}">
-          {{ card.status }}
+    <div class="rounded bg-[var(--rpg-bg-panel)] border-2
+      {% if card.is_latest %}border-[var(--rpg-gold)]{% else %}border-[var(--rpg-gold-dark)]{% endif %}
+      overflow-hidden">
+      <!-- 縮圖 -->
+      {% if card.thumbnail_url %}
+      <a href="/admin/cards/{{ card.id }}" target="_blank">
+        <img src="{{ card.thumbnail_url }}" alt="card #{{ card.id }}"
+             class="w-full aspect-[11/16] object-cover">
+      </a>
+      {% elif card.status == 'generating' %}
+      <div class="w-full aspect-[11/16] flex items-center justify-center bg-[var(--rpg-bg-card)]">
+        <i data-lucide="loader" class="w-6 h-6 text-[var(--rpg-warning)] animate-spin"></i>
+      </div>
+      {% elif card.status == 'failed' %}
+      <div class="w-full aspect-[11/16] flex items-center justify-center bg-[var(--rpg-bg-card)]">
+        <i data-lucide="x-circle" class="w-6 h-6 text-[var(--rpg-danger)]"></i>
+      </div>
+      {% else %}
+      <div class="w-full aspect-[11/16] flex items-center justify-center bg-[var(--rpg-bg-card)]">
+        <i data-lucide="image-off" class="w-6 h-6 text-[var(--rpg-text-secondary)]"></i>
+      </div>
+      {% endif %}
+      <!-- metadata -->
+      <div class="px-2 py-1.5 flex flex-col gap-0.5">
+        <div class="flex items-center justify-between">
+          <span class="font-tc text-[10px] text-[var(--rpg-gold)]">
+            #{{ card.id }}{% if card.is_latest %} ★{% endif %}
+          </span>
+          <span class="font-tc text-[10px] font-bold rounded px-1
+            {% if card.status == 'completed' %}bg-[var(--rpg-success)]/20 text-[var(--rpg-success)]
+            {% elif card.status == 'generating' %}bg-[var(--rpg-warning)]/20 text-[var(--rpg-warning)]
+            {% elif card.status == 'failed' %}bg-[var(--rpg-danger)]/20 text-[var(--rpg-danger)]
+            {% else %}bg-[var(--rpg-bg-card)] text-[var(--rpg-text-secondary)]{% endif %}">
+            {{ card.status }}
+          </span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">Lv.{{ card.level_number or '?' }}</span>
+          {% if card.rarity %}
+          <span class="font-pixel text-[9px] font-bold
+            {% if card.rarity == 'UR' %}text-[#ff6b6b]
+            {% elif card.rarity == 'SSR' %}text-[#d4a847]
+            {% elif card.rarity == 'SR' %}text-[#a855f7]
+            {% elif card.rarity == 'R' %}text-[#3b82f6]
+            {% else %}text-[var(--rpg-text-secondary)]{% endif %}">
+            {{ card.rarity }}
+          </span>
+          {% endif %}
+        </div>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
+          {{ card.created_at | format_taipei('%m-%d %H:%M') if card.created_at else '—' }}
         </span>
       </div>
-      <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">
-        {{ card.created_at | format_taipei('%Y-%m-%d %H:%M') if card.created_at else '—' }}
-        {% if card.is_latest %}<span class="text-[var(--rpg-gold)] ml-1">★ latest</span>{% endif %}
-      </p>
-      {% if card.border_style %}
-      <p class="font-tc text-xs text-[var(--rpg-text-secondary)] mt-1">Border: {{ card.border_style }} ・ Lv.{{ card.level_number or '?' }}</p>
-      {% endif %}
     </div>
     {% endfor %}
   </div>
