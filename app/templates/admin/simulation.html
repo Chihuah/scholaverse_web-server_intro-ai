@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% block title %}模擬生圖{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="flex items-center gap-3 w-full shrink-0">
+  <a href="/admin" class="flex items-center gap-1 font-tc text-xs text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)] transition-colors">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+    返回管理後台
+  </a>
+  <span class="text-[var(--rpg-gold-dark)]">|</span>
+  <div class="flex items-center gap-2">
+    <i data-lucide="flask-conical" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-sm font-black text-[var(--rpg-gold)]">模擬生圖</h1>
+  </div>
+  <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">— 自由選擇屬性、測試生圖效果</span>
+</div>
+
+<!-- Unit Attribute Panels -->
+{% for unit in units %}
+<div class="rounded p-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] w-full shrink-0" data-unit="{{ unit.code }}">
+  <!-- Unit header + open/close toggle -->
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+    <div class="flex items-center gap-2">
+      <span class="font-pixel text-[10px] text-[var(--rpg-gold)]">{{ unit.code | replace('unit_', 'Unit ') }}</span>
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">{{ unit.name }}</span>
+      <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">（{{ unit.subtitle }}）</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input type="radio" name="{{ unit.code }}_toggle" value="open" checked
+               onchange="toggleUnit('{{ unit.code }}')"
+               class="accent-[var(--rpg-gold)]">
+        <span class="font-tc text-xs text-[var(--rpg-success)] font-bold">已開啟</span>
+      </label>
+      <label class="flex items-center gap-1.5 cursor-pointer">
+        <input type="radio" name="{{ unit.code }}_toggle" value="closed"
+               onchange="toggleUnit('{{ unit.code }}')"
+               class="accent-[var(--rpg-gold)]">
+        <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">未開啟</span>
+      </label>
+    </div>
+  </div>
+  <!-- Attribute radio groups -->
+  <div class="unit-attrs flex flex-col gap-3">
+    {% for attr_type, attr_data in unit.attrs.items() %}
+    <div data-attr="{{ attr_type }}">
+      <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-1.5">{{ attr_data.label }}</p>
+      <div class="flex flex-wrap gap-x-5 gap-y-1.5">
+        {% for opt in attr_data.options %}
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" name="{{ unit.code }}_{{ attr_type }}" value="{{ opt.key }}"
+                 class="accent-[var(--rpg-gold)]">
+          <span class="font-tc text-xs text-[var(--rpg-text-primary)]">
+            <span class="text-[var(--rpg-text-secondary)] text-[10px]">{{ opt.key }}</span>：{{ opt.label }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+
+<!-- Card Parameters -->
+<div class="rounded p-4 bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] w-full shrink-0">
+  <div class="flex items-center gap-2 mb-4">
+    <i data-lucide="sliders-horizontal" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+    <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">卡牌參數</span>
+  </div>
+  <div class="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:gap-8">
+    <!-- Level slider -->
+    <div class="flex flex-col gap-2">
+      <label class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)]">
+        等級 Lv：<span id="level-display" class="text-[var(--rpg-gold)] font-black">50</span>
+      </label>
+      <input type="range" id="level-slider" min="1" max="100" value="50"
+             oninput="document.getElementById('level-display').textContent=this.value"
+             class="w-48 accent-[var(--rpg-gold)] cursor-pointer">
+      <div class="flex justify-between w-48">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">Lv.1</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">Lv.100</span>
+      </div>
+    </div>
+    <!-- Rarity -->
+    <div class="flex flex-col gap-2">
+      <p class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)]">稀有度</p>
+      <div class="flex flex-wrap items-center gap-4">
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" name="rarity_mode" value="auto" checked
+                 onchange="toggleRaritySelect()"
+                 class="accent-[var(--rpg-gold)]">
+          <span class="font-tc text-xs text-[var(--rpg-text-primary)]">自動（依等級機率）</span>
+        </label>
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input type="radio" name="rarity_mode" value="manual"
+                 onchange="toggleRaritySelect()"
+                 class="accent-[var(--rpg-gold)]">
+          <span class="font-tc text-xs text-[var(--rpg-text-primary)]">手動指定</span>
+        </label>
+        <select id="rarity-select" disabled
+                class="rounded px-2 py-1 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                       font-tc text-xs text-[var(--rpg-text-primary)] cursor-pointer
+                       disabled:opacity-40 disabled:cursor-not-allowed">
+          <option value="N">N（普通）</option>
+          <option value="R">R（稀有）</option>
+          <option value="SR">SR（超稀有）</option>
+          <option value="SSR">SSR（超超稀有）</option>
+          <option value="UR">UR（究極稀有）</option>
+        </select>
+      </div>
+    </div>
+    <!-- Nickname -->
+    <div class="flex flex-col gap-2">
+      <label for="nickname-input" class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)]">角色暱稱</label>
+      <input type="text" id="nickname-input" value="Admin Test" maxlength="18"
+             class="rounded px-3 py-1.5 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                    font-tc text-xs text-[var(--rpg-text-primary)] w-40
+                    focus:outline-none focus:border-[var(--rpg-gold)]">
+    </div>
+  </div>
+</div>
+
+<!-- Submit Button -->
+<div class="w-full shrink-0">
+  <button onclick="submitSimulation()" id="submit-btn"
+          class="flex items-center gap-2 rounded px-6 py-2.5
+                 bg-[var(--rpg-gold)] text-[var(--rpg-bg-dark)]
+                 font-tc text-xs font-black
+                 hover:opacity-90 transition-opacity disabled:opacity-50">
+    <i data-lucide="sparkles" class="w-4 h-4"></i>
+    送出模擬生圖
+  </button>
+</div>
+
+<!-- Divider + Results Header -->
+<div class="w-full shrink-0 border-t-2 border-[var(--rpg-gold-dark)] pt-4">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <i data-lucide="image" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">
+        模擬結果（<span id="sim-count">{{ sim_cards | length }}</span> 張）
+      </span>
+    </div>
+    <button onclick="clearSimulation()" id="clear-btn"
+            class="flex items-center gap-1.5 rounded px-3 py-1.5
+                   bg-[var(--rpg-danger)]/20 border border-[var(--rpg-danger)]/40
+                   font-tc text-xs text-[var(--rpg-danger)]
+                   hover:opacity-80 transition-opacity
+                   {% if not sim_cards %}hidden{% endif %}">
+      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      清空全部
+    </button>
+  </div>
+</div>
+
+<!-- Results Area -->
+<div class="w-full shrink-0 min-h-[120px]">
+  <div id="sim-results" class="flex flex-wrap gap-2">
+    {% if not sim_cards %}
+    <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">尚無模擬結果。設定屬性後按「送出模擬生圖」。</p>
+    {% else %}
+    {% for card in sim_cards %}
+    <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] overflow-hidden flex-shrink-0" style="width:73px;">
+      {% if card.thumbnail_url %}
+      <a href="{{ card.image_url }}" target="_blank">
+        <img src="{{ card.thumbnail_url }}" style="width:73px;height:107px;object-fit:cover;display:block;" alt="card #{{ card.id }}">
+      </a>
+      {% elif card.status in ('generating', 'pending') %}
+      <div style="width:73px;height:107px;display:flex;align-items:center;justify-content:center;background:var(--rpg-bg-card)">
+        <i data-lucide="loader" class="w-5 h-5 text-[var(--rpg-warning)] animate-spin"></i>
+      </div>
+      {% elif card.status == 'failed' %}
+      <div style="width:73px;height:107px;display:flex;align-items:center;justify-content:center;background:var(--rpg-bg-card)">
+        <i data-lucide="x-circle" class="w-5 h-5 text-[var(--rpg-danger)]"></i>
+      </div>
+      {% else %}
+      <div style="width:73px;height:107px;display:flex;align-items:center;justify-content:center;background:var(--rpg-bg-card)">
+        <i data-lucide="image-off" class="w-5 h-5 text-[var(--rpg-text-secondary)]"></i>
+      </div>
+      {% endif %}
+      <div class="px-1 py-1 flex flex-col gap-0.5" style="width:73px;">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="font-tc" style="font-size:9px;color:var(--rpg-gold)">#{{ card.id }}</span>
+          <span class="font-tc font-bold" style="font-size:8px;
+            {% if card.status == 'completed' %}color:var(--rpg-success)
+            {% elif card.status == 'failed' %}color:var(--rpg-danger)
+            {% else %}color:var(--rpg-warning){% endif %}">
+            {{ card.status[:4] }}
+          </span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="font-tc" style="font-size:9px;color:var(--rpg-text-secondary)">Lv.{{ card.level_number or '?' }}</span>
+          {% if card.rarity %}
+          <span class="font-pixel font-bold" style="font-size:8px;
+            {% if card.rarity == 'UR' %}color:#ff6b6b
+            {% elif card.rarity == 'SSR' %}color:#d4a847
+            {% elif card.rarity == 'SR' %}color:#a855f7
+            {% elif card.rarity == 'R' %}color:#3b82f6
+            {% else %}color:var(--rpg-text-secondary){% endif %}">
+            {{ card.rarity }}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+// ── Unit open/close toggle ──────────────────────────────────────────
+function toggleUnit(unitCode) {
+  const panel = document.querySelector(`[data-unit="${unitCode}"]`);
+  const isOpen = panel.querySelector(`input[name="${unitCode}_toggle"][value="open"]`).checked;
+  const attrsDiv = panel.querySelector('.unit-attrs');
+  attrsDiv.style.opacity = isOpen ? '1' : '0.4';
+  attrsDiv.style.pointerEvents = isOpen ? '' : 'none';
+  attrsDiv.querySelectorAll('input[type="radio"]').forEach(r => r.disabled = !isOpen);
+}
+
+// ── Rarity select enable/disable ────────────────────────────────────
+function toggleRaritySelect() {
+  const isManual = document.querySelector('input[name="rarity_mode"][value="manual"]').checked;
+  document.getElementById('rarity-select').disabled = !isManual;
+}
+
+// ── Submit simulation ────────────────────────────────────────────────
+async function submitSimulation() {
+  const card_config = {};
+
+  ['unit_1','unit_2','unit_3','unit_4','unit_5','unit_6'].forEach(unit => {
+    const toggle = document.querySelector(`input[name="${unit}_toggle"]:checked`);
+    if (!toggle || toggle.value !== 'open') return;
+    document.querySelectorAll(`[data-unit="${unit}"] [data-attr]`).forEach(group => {
+      const attrType = group.dataset.attr;
+      const selected = group.querySelector('input[type="radio"]:checked');
+      if (selected) card_config[attrType] = selected.value;
+    });
+  });
+
+  const level = parseInt(document.getElementById('level-slider').value);
+  const rarityMode = document.querySelector('input[name="rarity_mode"]:checked').value;
+  const rarity = rarityMode === 'auto' ? 'auto' : document.getElementById('rarity-select').value;
+  const nickname = document.getElementById('nickname-input').value.trim() || 'Admin Test';
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i><span>送出中...</span>';
+  if (window.lucide) lucide.createIcons();
+
+  try {
+    const resp = await fetch('/api/admin/simulation/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({card_config, level, rarity, nickname})
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      showToast('生圖失敗：' + (err.detail || '未知錯誤'), 'error');
+    } else {
+      showToast('已送出模擬生圖，生成中...');
+      startPolling();
+    }
+  } catch (e) {
+    showToast('連線失敗：' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i data-lucide="sparkles" class="w-4 h-4"></i>送出模擬生圖';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+// ── Result polling ───────────────────────────────────────────────────
+let _pollTimer = null;
+
+function startPolling() {
+  clearTimeout(_pollTimer);
+  pollResults();
+}
+
+async function pollResults() {
+  try {
+    const resp = await fetch('/api/admin/simulation/cards');
+    const cards = await resp.json();
+    renderResults(cards);
+    const stillGoing = cards.some(c => c.status === 'generating' || c.status === 'pending');
+    if (stillGoing) _pollTimer = setTimeout(pollResults, 3000);
+  } catch (e) {
+    console.error('Poll error:', e);
+  }
+}
+
+function renderResults(cards) {
+  const container = document.getElementById('sim-results');
+  const countEl = document.getElementById('sim-count');
+  const clearBtn = document.getElementById('clear-btn');
+
+  countEl.textContent = cards.length;
+  clearBtn.classList.toggle('hidden', cards.length === 0);
+
+  if (cards.length === 0) {
+    container.innerHTML = '<p class="font-tc text-xs text-[var(--rpg-text-secondary)]">尚無模擬結果。設定屬性後按「送出模擬生圖」。</p>';
+    return;
+  }
+
+  const RARITY_COLORS = {UR:'#ff6b6b', SSR:'#d4a847', SR:'#a855f7', R:'#3b82f6'};
+
+  container.innerHTML = cards.map(card => {
+    let imgHtml;
+    if (card.thumbnail_url) {
+      const href = card.image_url || card.thumbnail_url;
+      imgHtml = `<a href="${href}" target="_blank"><img src="${card.thumbnail_url}" style="width:73px;height:107px;object-fit:cover;display:block;" alt="#${card.id}"></a>`;
+    } else if (card.status === 'generating' || card.status === 'pending') {
+      imgHtml = `<div style="width:73px;height:107px;display:flex;align-items:center;justify-content:center;background:var(--rpg-bg-card)"><i data-lucide="loader" class="w-5 h-5 text-[var(--rpg-warning)] animate-spin"></i></div>`;
+    } else if (card.status === 'failed') {
+      imgHtml = `<div style="width:73px;height:107px;display:flex;align-items:center;justify-content:center;background:var(--rpg-bg-card)"><i data-lucide="x-circle" class="w-5 h-5 text-[var(--rpg-danger)]"></i></div>`;
+    } else {
+      imgHtml = `<div style="width:73px;height:107px;display:flex;align-items:center;justify-content:center;background:var(--rpg-bg-card)"><i data-lucide="image-off" class="w-5 h-5 text-[var(--rpg-text-secondary)]"></i></div>`;
+    }
+
+    const statusColor = card.status === 'completed' ? 'var(--rpg-success)' :
+                        card.status === 'failed'    ? 'var(--rpg-danger)' :
+                                                      'var(--rpg-warning)';
+    const rarityColor = RARITY_COLORS[card.rarity] || 'var(--rpg-text-secondary)';
+
+    return `<div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] overflow-hidden flex-shrink-0" style="width:73px;">
+      ${imgHtml}
+      <div class="px-1 py-1 flex flex-col gap-0.5" style="width:73px;">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="font-tc" style="font-size:9px;color:var(--rpg-gold)">#${card.id}</span>
+          <span class="font-tc font-bold" style="font-size:8px;color:${statusColor}">${(card.status||'').substring(0,4)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="font-tc" style="font-size:9px;color:var(--rpg-text-secondary)">Lv.${card.level_number||'?'}</span>
+          <span class="font-pixel font-bold" style="font-size:8px;color:${rarityColor}">${card.rarity||'N'}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// ── Clear all simulation cards ───────────────────────────────────────
+async function clearSimulation() {
+  if (!confirm('確定清空所有模擬結果？此操作不可復原。')) return;
+  try {
+    const resp = await fetch('/api/admin/simulation/cards', {method: 'DELETE'});
+    const data = await resp.json();
+    showToast(`已清空 ${data.deleted} 張模擬卡牌`);
+    renderResults([]);
+  } catch (e) {
+    showToast('清空失敗：' + e.message, 'error');
+  }
+}
+
+// ── Toast notification ───────────────────────────────────────────────
+function showToast(msg, type) {
+  const existing = document.querySelector('.sim-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'sim-toast fixed bottom-4 right-4 z-50 rounded px-4 py-2 font-tc text-xs font-bold shadow-lg';
+  toast.style.background = type === 'error' ? 'var(--rpg-danger)' : 'var(--rpg-success)';
+  toast.style.color = '#fff';
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+// ── On page load: resume polling if any cards still generating ───────
+document.addEventListener('DOMContentLoaded', () => {
+  fetch('/api/admin/simulation/cards').then(r => r.json()).then(cards => {
+    const stillGoing = cards.some(c => c.status === 'generating' || c.status === 'pending');
+    if (stillGoing) startPolling();
+  }).catch(() => {});
+});
+</script>
+{% endblock %}

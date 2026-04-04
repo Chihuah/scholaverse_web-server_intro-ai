@@ -1292,3 +1292,238 @@ async def admin_generation_history(
             "status_filter": status_filter,
         },
     )
+
+
+# ─── Simulation Generation ────────────────────────────────────────────
+
+_SIMULATION_STUDENT_ID = "SIMULATION"
+
+_UNIT_DISPLAY = {
+    "unit_1": ("先備知識", "種族、性別"),
+    "unit_2": ("MLP", "職業、體型"),
+    "unit_3": ("CNN", "服飾裝備"),
+    "unit_4": ("RNN", "武器"),
+    "unit_5": ("進階技術", "背景場景"),
+    "unit_6": ("自主學習", "表情、姿勢"),
+}
+
+_ATTR_DISPLAY = {
+    "race": "種族", "gender": "性別", "class": "職業", "body": "體型",
+    "equipment": "裝備", "weapon_quality": "武器品質", "weapon_type": "武器類型",
+    "background": "背景", "expression": "表情", "pose": "姿勢",
+}
+
+
+async def _get_or_create_simulation_student(db: AsyncSession) -> Student:
+    """Get or create the SIMULATION pseudo-student."""
+    result = await db.execute(
+        select(Student).where(Student.student_id == _SIMULATION_STUDENT_ID)
+    )
+    sim = result.scalar_one_or_none()
+    if sim is None:
+        sim = Student(
+            student_id=_SIMULATION_STUDENT_ID,
+            name="模擬生圖",
+            email="simulation@system",
+            role="admin",
+            tokens=0,
+        )
+        db.add(sim)
+        await db.commit()
+        await db.refresh(sim)
+    return sim
+
+
+@router.get("/admin/simulation")
+async def admin_simulation(
+    request: Request,
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """模擬生圖頁面。"""
+    await _get_or_create_simulation_student(db)
+
+    rules_result = await db.execute(
+        select(AttributeRule).order_by(
+            AttributeRule.unit_code, AttributeRule.attribute_type, AttributeRule.sort_order
+        )
+    )
+    all_rules = rules_result.scalars().all()
+
+    units_config: dict = {}
+    for rule in all_rules:
+        unit = rule.unit_code
+        attr = rule.attribute_type
+        try:
+            opts = json.loads(rule.options)
+            lbls = json.loads(rule.labels)
+        except Exception:
+            continue
+
+        if unit not in units_config:
+            units_config[unit] = {}
+        if attr not in units_config[unit]:
+            units_config[unit][attr] = {
+                "label": _ATTR_DISPLAY.get(attr, attr),
+                "options": [],
+                "seen_keys": set(),
+            }
+        for key in opts:
+            if key not in units_config[unit][attr]["seen_keys"]:
+                units_config[unit][attr]["seen_keys"].add(key)
+                units_config[unit][attr]["options"].append({
+                    "key": key,
+                    "label": lbls.get(key, key),
+                })
+
+    for unit_data in units_config.values():
+        for attr_data in unit_data.values():
+            attr_data.pop("seen_keys", None)
+
+    units_ordered = []
+    for code in ["unit_1", "unit_2", "unit_3", "unit_4", "unit_5", "unit_6"]:
+        if code in units_config:
+            unit_name, unit_subtitle = _UNIT_DISPLAY.get(code, (code, ""))
+            units_ordered.append({
+                "code": code,
+                "name": unit_name,
+                "subtitle": unit_subtitle,
+                "attrs": units_config[code],
+            })
+
+    sim_student = await _get_or_create_simulation_student(db)
+    cards_result = await db.execute(
+        select(Card)
+        .where(Card.student_id == sim_student.id)
+        .order_by(Card.created_at.desc())
+    )
+    sim_cards = cards_result.scalars().all()
+
+    return templates.TemplateResponse(
+        request,
+        "admin/simulation.html",
+        {
+            "user": user,
+            "units": units_ordered,
+            "sim_cards": sim_cards,
+        },
+    )
+
+
+@router.post("/api/admin/simulation/generate")
+async def api_admin_simulation_generate(
+    request: Request,
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """送出模擬生圖請求。"""
+    from app.services.ai_worker import get_ai_worker_service
+    from app.services.scoring import roll_rarity
+
+    body = await request.json()
+    card_config: dict = body.get("card_config", {})
+    level: int = max(1, min(100, int(body.get("level", 50))))
+    rarity_input: str = body.get("rarity", "auto")
+    nickname: str = body.get("nickname", "Admin Test") or "Admin Test"
+
+    rarity = roll_rarity(level) if rarity_input == "auto" else rarity_input
+    card_config["level"] = level
+    card_config["rarity"] = rarity
+    card_config["border"] = "copper"
+
+    sim_student = await _get_or_create_simulation_student(db)
+
+    new_card = Card(
+        student_id=sim_student.id,
+        config_snapshot=json.dumps(card_config),
+        status="pending",
+        border_style="copper",
+        level_number=level,
+        rarity=rarity,
+        is_latest=False,
+        is_display=False,
+        is_hidden=True,
+    )
+    db.add(new_card)
+    await db.commit()
+    await db.refresh(new_card)
+
+    learning_data = {
+        "unit_scores": {},
+        "overall_completion": float(level),
+    }
+
+    ai_worker = get_ai_worker_service()
+    job_id = None
+    try:
+        job_id = await ai_worker.submit_generation(
+            card_id=new_card.id,
+            student_id="SIMULATION",
+            student_nickname=nickname,
+            card_config=card_config,
+            learning_data=learning_data,
+        )
+        new_card.status = "generating"
+        new_card.job_id = job_id
+        await db.commit()
+    except Exception as e:
+        logger.error(f"Simulation generation failed: {e}")
+        new_card.status = "failed"
+        await db.commit()
+        raise HTTPException(status_code=502, detail="AI 生圖服務無法連線")
+
+    return {"card_id": new_card.id, "job_id": job_id, "status": "generating"}
+
+
+@router.get("/api/admin/simulation/cards")
+async def api_admin_simulation_cards(
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """取得所有模擬卡牌列表（用於 JS polling）。"""
+    sim_result = await db.execute(
+        select(Student).where(Student.student_id == _SIMULATION_STUDENT_ID)
+    )
+    sim_student = sim_result.scalar_one_or_none()
+    if sim_student is None:
+        return []
+
+    cards_result = await db.execute(
+        select(Card)
+        .where(Card.student_id == sim_student.id)
+        .order_by(Card.created_at.desc())
+    )
+    cards = cards_result.scalars().all()
+
+    return [
+        {
+            "id": c.id,
+            "status": c.status,
+            "thumbnail_url": c.thumbnail_url,
+            "image_url": c.image_url,
+            "level_number": c.level_number,
+            "rarity": c.rarity,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+        }
+        for c in cards
+    ]
+
+
+@router.delete("/api/admin/simulation/cards")
+async def api_admin_simulation_clear(
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """清空所有模擬卡牌。"""
+    sim_result = await db.execute(
+        select(Student).where(Student.student_id == _SIMULATION_STUDENT_ID)
+    )
+    sim_student = sim_result.scalar_one_or_none()
+    if sim_student is None:
+        return {"deleted": 0}
+
+    result = await db.execute(
+        delete(Card).where(Card.student_id == sim_student.id)
+    )
+    await db.commit()
+    return {"deleted": result.rowcount}
