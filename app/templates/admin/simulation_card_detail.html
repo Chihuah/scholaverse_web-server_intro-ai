@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}卡牌詳情 #{{ card.id }}{% endblock %}
+{% block content %}
+
+<!-- Header -->
+<div class="flex items-center gap-3 w-full shrink-0">
+  <a href="/admin/simulation" class="flex items-center gap-1 font-tc text-xs text-[var(--rpg-text-secondary)] hover:text-[var(--rpg-gold)] transition-colors">
+    <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
+    返回模擬生圖
+  </a>
+  <span class="text-[var(--rpg-gold-dark)]">|</span>
+  <div class="flex items-center gap-2">
+    <i data-lucide="image" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+    <h1 class="font-tc text-sm font-black text-[var(--rpg-gold)]">卡牌詳情 #{{ card.id }}</h1>
+  </div>
+</div>
+
+<!-- Main layout: card image + prompt side by side -->
+<div class="flex flex-col lg:flex-row gap-6 w-full shrink-0">
+
+  <!-- Left: Card image -->
+  <div class="flex flex-col items-center gap-3 shrink-0">
+    {% if card.image_url %}
+    <a href="{{ card.image_url }}" target="_blank" title="開啟原圖">
+      <img src="{{ card.image_url }}" alt="card #{{ card.id }}"
+           class="rounded border-2 border-[var(--rpg-gold-dark)] shadow-lg"
+           style="width:220px;height:320px;object-fit:cover;">
+    </a>
+    <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">點擊可開啟原圖（880×1280）</span>
+    {% elif card.status in ("generating", "pending") %}
+    <div class="rounded border-2 border-[var(--rpg-gold-dark)] flex items-center justify-center bg-[var(--rpg-bg-card)]"
+         style="width:220px;height:320px;">
+      <i data-lucide="loader" class="w-8 h-8 text-[var(--rpg-warning)] animate-spin"></i>
+    </div>
+    <span class="font-tc text-xs text-[var(--rpg-warning)]">生成中...</span>
+    {% elif card.status == "failed" %}
+    <div class="rounded border-2 border-[var(--rpg-danger)]/40 flex items-center justify-center bg-[var(--rpg-bg-card)]"
+         style="width:220px;height:320px;">
+      <i data-lucide="x-circle" class="w-8 h-8 text-[var(--rpg-danger)]"></i>
+    </div>
+    <span class="font-tc text-xs text-[var(--rpg-danger)]">生成失敗</span>
+    {% else %}
+    <div class="rounded border-2 border-[var(--rpg-gold-dark)]/30 flex items-center justify-center bg-[var(--rpg-bg-card)]"
+         style="width:220px;height:320px;">
+      <i data-lucide="image-off" class="w-8 h-8 text-[var(--rpg-text-secondary)]"></i>
+    </div>
+    {% endif %}
+
+    <!-- Card meta -->
+    <div class="rounded p-3 bg-[var(--rpg-bg-panel)] border border-[var(--rpg-gold-dark)]/40 w-full" style="max-width:220px;">
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">狀態</span>
+        <span class="font-tc text-[10px] font-bold
+          {% if card.status == 'completed' %}text-[var(--rpg-success)]
+          {% elif card.status == 'failed' %}text-[var(--rpg-danger)]
+          {% else %}text-[var(--rpg-warning)]{% endif %}">
+          {{ card.status }}
+        </span>
+      </div>
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">等級</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-gold)]">Lv.{{ card.level_number or '?' }}</span>
+      </div>
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">稀有度</span>
+        <span class="font-pixel text-[10px] font-bold
+          {% if card.rarity == 'UR' %}text-[#ff6b6b]
+          {% elif card.rarity == 'SSR' %}text-[var(--rpg-gold)]
+          {% elif card.rarity == 'SR' %}text-[#a855f7]
+          {% elif card.rarity == 'R' %}text-[#3b82f6]
+          {% else %}text-[var(--rpg-text-secondary)]{% endif %}">
+          {{ card.rarity or 'N' }}
+        </span>
+      </div>
+      {% if card.generated_at %}
+      <div class="flex justify-between items-center">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">生成時間</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
+          {{ card.generated_at.strftime('%m/%d %H:%M') if card.generated_at else '-' }}
+        </span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Right: Prompt display -->
+  <div class="flex flex-col gap-3 flex-1 min-w-0">
+    <div class="flex items-center gap-2">
+      <i data-lucide="scroll-text" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">完整生成提示詞</span>
+    </div>
+
+    {% if card.prompt %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40 flex-1">
+      <p class="font-tc text-xs leading-relaxed text-[var(--rpg-text-primary)] whitespace-pre-wrap break-words">{{ card.prompt }}</p>
+    </div>
+    <button onclick="copyPrompt()"
+            class="self-start flex items-center gap-1.5 rounded px-3 py-1.5
+                   bg-[var(--rpg-bg-panel)] border border-[var(--rpg-gold-dark)]/60
+                   font-tc text-xs text-[var(--rpg-text-secondary)]
+                   hover:text-[var(--rpg-gold)] hover:border-[var(--rpg-gold)] transition-colors">
+      <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+      複製提示詞
+    </button>
+    {% elif card.status in ("completed",) %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
+      <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">
+        此卡牌在記錄提示詞功能上線前生成，提示詞未保存。
+      </p>
+    </div>
+    {% elif card.status in ("generating", "pending") %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
+      <p class="font-tc text-xs text-[var(--rpg-warning)]">生成中，提示詞將在完成後顯示。</p>
+    </div>
+    {% else %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
+      <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">提示詞不可用。</p>
+    </div>
+    {% endif %}
+
+    <!-- Config snapshot -->
+    {% if card.config_snapshot %}
+    <div class="flex items-center gap-2 mt-2">
+      <i data-lucide="settings" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">屬性配置</span>
+    </div>
+    <div class="rounded p-3 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
+      <pre class="font-tc text-[10px] text-[var(--rpg-text-secondary)] whitespace-pre-wrap break-words leading-relaxed">{{ card.config_snapshot | tojson(indent=2) if card.config_snapshot is mapping else card.config_snapshot }}</pre>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+function copyPrompt() {
+  const text = {{ card.prompt | tojson if card.prompt else "" }};
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.currentTarget;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<i data-lucide="check" class="w-3.5 h-3.5"></i>已複製';
+    if (window.lucide) lucide.createIcons();
+    setTimeout(() => { btn.innerHTML = orig; if (window.lucide) lucide.createIcons(); }, 2000);
+  });
+}
+</script>
+{% endblock %}

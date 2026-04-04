@@ -72,9 +72,10 @@ class RealAIWorkerService(AIWorkerService):
             "job_id": job_id,
             "card_id": card_id,
             "student_id": student_id,
+            "student_nickname": student_nickname,
             "card_config": card_config,
             "learning_data": learning_data,
-            "style_hint": "16-bit pixel art, fantasy RPG character card",
+            "style_hint": "Hearthstone-style fantasy card art, digital oil painting, warm dramatic lighting, rich saturated colors, painterly brushwork, detailed character portrait",
             "callback_url": _callback_url(),
         }
         try:
@@ -125,6 +126,7 @@ class MockAIWorkerService(AIWorkerService):
             "status": "generating",
             "card_id": card_id,
             "student_id": student_id,
+            "student_nickname": student_nickname,
             "card_config": card_config,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "image_path": None,

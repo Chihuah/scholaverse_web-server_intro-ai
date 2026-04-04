@@ -164,7 +164,7 @@
     {% for card in sim_cards %}
     <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] overflow-hidden flex-shrink-0" style="width:73px;">
       {% if card.thumbnail_url %}
-      <a href="{{ card.image_url }}" target="_blank">
+      <a href="/admin/simulation/cards/{{ card.id }}">
         <img src="{{ card.thumbnail_url }}" style="width:73px;height:107px;object-fit:cover;display:block;" alt="card #{{ card.id }}">
       </a>
       {% elif card.status in ('generating', 'pending') %}
@@ -314,8 +314,7 @@ function renderResults(cards) {
   container.innerHTML = cards.map(card => {
     let imgHtml;
     if (card.thumbnail_url) {
-      const href = card.image_url || card.thumbnail_url;
-      imgHtml = `<a href="${href}" target="_blank"><img src="${card.thumbnail_url}" style="width:73px;height:107px;object-fit:cover;display:block;" alt="#${card.id}"></a>`;
+      imgHtml = `<a href="/admin/simulation/cards/${card.id}"><img src="${card.thumbnail_url}" style="width:73px;height:107px;object-fit:cover;display:block;" alt="#${card.id}"></a>`;
     } else if (card.status === 'generating' || card.status === 'pending') {
       imgHtml = `<div style="width:73px;height:107px;display:flex;align-items:center;justify-content:center;background:var(--rpg-bg-card)"><i data-lucide="loader" class="w-5 h-5 text-[var(--rpg-warning)] animate-spin"></i></div>`;
     } else if (card.status === 'failed') {

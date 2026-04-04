@@ -48,6 +48,7 @@ class GenerationCallbackBody(BaseModel):
     image_path: str | None = None
     thumbnail_path: str | None = None
     generated_at: str | None = None
+    prompt: str | None = None
     error: str | None = None
 
 
@@ -72,6 +73,8 @@ async def generation_callback(
         card.status = "completed"
         card.image_url = _image_path_to_url(body.image_path)
         card.thumbnail_url = _image_path_to_url(body.thumbnail_path)
+        if body.prompt:
+            card.prompt = body.prompt
         if body.generated_at:
             try:
                 card.generated_at = datetime.fromisoformat(body.generated_at)

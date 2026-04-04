@@ -1527,3 +1527,26 @@ async def api_admin_simulation_clear(
     )
     await db.commit()
     return {"deleted": result.rowcount}
+
+
+@router.get("/admin/simulation/cards/{card_id}")
+async def admin_simulation_card_detail(
+    card_id: int,
+    request: Request,
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """模擬卡牌詳情頁面 — 顯示卡牌圖片與完整生成提示詞。"""
+    sim_student = await _get_or_create_simulation_student(db)
+    result = await db.execute(
+        select(Card).where(Card.id == card_id, Card.student_id == sim_student.id)
+    )
+    card = result.scalar_one_or_none()
+    if card is None:
+        raise HTTPException(status_code=404, detail="找不到此模擬卡牌。")
+
+    return templates.TemplateResponse(
+        request,
+        "admin/simulation_card_detail.html",
+        {"user": user, "card": card},
+    )
