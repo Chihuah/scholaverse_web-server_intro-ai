@@ -111,6 +111,45 @@
   </div>
 </div>
 
+<!-- ══ 影片預習率匯入（本機 CSV）══════════════════════════════════ -->
+<div class="w-full">
+  <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] p-5">
+    <div class="flex items-center gap-2 mb-4">
+      <i data-lucide="film" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <h2 class="font-tc text-xs font-bold text-[var(--rpg-gold)]">影片預習率匯入</h2>
+    </div>
+
+    <div class="rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)] p-4">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="folder-open" class="w-3.5 h-3.5 text-[var(--rpg-gold)]"></i>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">讀取 data/preview_rates.csv</span>
+      </div>
+      <p class="font-tc text-xs text-[var(--rpg-text-secondary)] mb-3">
+        此功能會直接讀取伺服器本機檔案
+        <code class="text-[var(--rpg-gold)]">data/preview_rates.csv</code>，
+        預覽後將其寫入學生的 <code class="text-[var(--rpg-gold)]">learning_records.preview_score</code>。
+      </p>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <button id="preview-rates-preview-btn"
+                class="flex items-center justify-center gap-2 rounded px-4 py-2
+                       bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)]
+                       font-tc text-xs font-bold text-[var(--rpg-text-primary)]
+                       transition-opacity hover:opacity-90">
+          <i data-lucide="search-check" class="w-3.5 h-3.5 text-[var(--rpg-gold)]"></i>
+          讀取並預覽 preview_rates.csv
+        </button>
+        <span class="font-tc text-[11px] text-[var(--rpg-text-secondary)]">
+          不需上傳檔案；請先在伺服器上產生最新的 <code>data/preview_rates.csv</code>
+        </span>
+      </div>
+
+      <div id="preview-rates-preview-area"></div>
+      <div id="preview-rates-commit-area"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ CSV Import Section (legacy) ══════════════════════════════════ -->
 <div class="w-full">
   <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] p-5">
@@ -292,6 +331,56 @@
     commitEndpoint: '/api/admin/import-excel/scores/commit',
     importType: 'scores',
   });
+})();
+
+// ── Preview-rates CSV import from data/preview_rates.csv ─────────────
+(function () {
+  const previewBtn = document.getElementById('preview-rates-preview-btn');
+  const previewArea = document.getElementById('preview-rates-preview-area');
+  const commitArea = document.getElementById('preview-rates-commit-area');
+
+  if (!previewBtn) return;
+
+  async function loadPreview() {
+    previewBtn.disabled = true;
+    previewBtn.innerHTML = '<span>讀取中…</span>';
+    previewArea.innerHTML = '';
+    commitArea.innerHTML = '';
+
+    try {
+      const resp = await fetch('/api/admin/import-preview-rates/preview', { method: 'POST' });
+      const html = await resp.text();
+      previewArea.innerHTML = html;
+
+      if (resp.ok) {
+        const commitForm = previewArea.querySelector('#preview-rates-commit-form');
+        if (commitForm) {
+          commitForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = commitForm.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = '更新中…';
+
+            const commitResp = await fetch('/api/admin/import-preview-rates/commit', {
+              method: 'POST',
+            });
+            const commitHtml = await commitResp.text();
+            commitArea.innerHTML = commitHtml;
+            lucide.createIcons();
+          });
+        }
+      }
+      lucide.createIcons();
+    } catch (err) {
+      previewArea.innerHTML = `<p class="text-[var(--rpg-danger)] text-xs mt-2">錯誤：${err.message}</p>`;
+    } finally {
+      previewBtn.disabled = false;
+      previewBtn.innerHTML = '<i data-lucide="search-check" class="w-3.5 h-3.5 text-[var(--rpg-gold)]"></i> 讀取並預覽 preview_rates.csv';
+      lucide.createIcons();
+    }
+  }
+
+  previewBtn.addEventListener('click', loadPreview);
 })();
 
 // ── CSV import (legacy) ───────────────────────────────────────────────

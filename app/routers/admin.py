@@ -6,6 +6,7 @@ import json
 import logging
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from urllib.parse import urlencode
 
 import httpx
@@ -44,6 +45,7 @@ from app.templating import templates
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["admin"])
+_PREVIEW_RATES_FILENAME = "preview_rates.csv"
 
 
 def _parse_card_snapshot(card: Card) -> dict:
@@ -1091,6 +1093,92 @@ async def api_excel_scores_commit(
     </div>"""
 
 
+@router.post("/api/admin/import-preview-rates/preview", response_class=HTMLResponse)
+async def api_preview_rates_preview(
+    request: Request,
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview import results from data/preview_rates.csv."""
+
+    records, parse_errors = _load_preview_rate_records_from_csv()
+    students = (await db.execute(select(Student))).scalars().all()
+    student_map, ambiguous_suffixes = _build_student_lookup(students)
+    return _build_preview_rates_summary_html(
+        records, parse_errors, student_map, ambiguous_suffixes
+    )
+
+
+@router.post("/api/admin/import-preview-rates/commit", response_class=HTMLResponse)
+async def api_preview_rates_commit(
+    request: Request,
+    user: Student = Depends(require_teacher),
+    db: AsyncSession = Depends(get_db),
+):
+    """Commit preview_score updates from data/preview_rates.csv."""
+
+    records, parse_errors = _load_preview_rate_records_from_csv()
+    if parse_errors:
+        items = "".join(f"<li>{err}</li>" for err in parse_errors[:20])
+        return f"""
+        <div class="rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-danger)] p-4 mt-3">
+          <p class="font-tc text-xs font-bold text-[var(--rpg-danger)] mb-2">無法匯入</p>
+          <ul class="text-[var(--rpg-danger)] text-[10px] list-disc list-inside">{items}</ul>
+        </div>"""
+
+    students = (await db.execute(select(Student))).scalars().all()
+    student_map, ambiguous_suffixes = _build_student_lookup(students)
+    if ambiguous_suffixes:
+        blocking_ids = sorted({rec.student_id for rec in records if rec.student_id in ambiguous_suffixes})
+        if blocking_ids:
+            items = "".join(
+                f"<li>{suffix}（{', '.join(ambiguous_suffixes[suffix][:3])}）</li>"
+                for suffix in blocking_ids[:20]
+            )
+            return f"""
+            <div class="rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-danger)] p-4 mt-3">
+              <p class="font-tc text-xs font-bold text-[var(--rpg-danger)] mb-2">無法匯入</p>
+              <p class="font-tc text-xs text-[var(--rpg-text-primary)]">preview_rates.csv 中有 student_id 對應到多位學生，請先修正 CSV。</p>
+              <ul class="mt-2 text-[var(--rpg-danger)] text-[10px] list-disc list-inside">{items}</ul>
+            </div>"""
+
+    units = (await db.execute(select(Unit))).scalars().all()
+    unit_map = {u.code: u.id for u in units}
+
+    try:
+        created, updated, warnings = await _upsert_records(
+            db,
+            records,
+            student_map,
+            unit_map,
+            update_fields=("preview_score",),
+        )
+        await db.commit()
+    except Exception as exc:
+        await db.rollback()
+        logger.exception("Preview-rate commit failed")
+        raise HTTPException(status_code=500, detail=f"寫入資料庫失敗：{exc}") from exc
+
+    warn_html = ""
+    if warnings:
+        items = "".join(f"<li>{warning}</li>" for warning in warnings[:20])
+        warn_html = (
+            f'<ul class="mt-2 text-[var(--rpg-danger)] text-[10px] list-disc list-inside">'
+            f"{items}</ul>"
+        )
+
+    return f"""
+    <div class="rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold)] p-4 mt-3">
+      <p class="font-tc text-xs font-bold text-[var(--rpg-gold)] mb-2">✓ 影片預習分數更新完成</p>
+      <ul class="font-tc text-xs text-[var(--rpg-text-primary)] space-y-1">
+        <li>來源檔案：<span class="font-mono text-[var(--rpg-gold-bright)]">{_preview_rates_path()}</span></li>
+        <li>新增：<span class="text-[var(--rpg-gold-bright)] font-bold">{created}</span> 筆</li>
+        <li>更新：<span class="text-[var(--rpg-gold-bright)] font-bold">{updated}</span> 筆</li>
+      </ul>
+      {warn_html}
+    </div>"""
+
+
 def _parse_float(val: str | None) -> float | None:
     """Parse a CSV cell to float, returning None for empty/invalid."""
     if val is None:
@@ -1102,6 +1190,175 @@ def _parse_float(val: str | None) -> float | None:
         return float(val)
     except ValueError:
         return None
+
+
+def _preview_rates_path() -> Path:
+    """Return the fixed preview-rate CSV path."""
+
+    return settings.DATA_DIR / _PREVIEW_RATES_FILENAME
+
+
+def _load_preview_rate_records_from_csv() -> tuple[list[StudentRecord], list[str]]:
+    """Load preview-score records from data/preview_rates.csv."""
+
+    csv_path = _preview_rates_path()
+    if not csv_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"找不到 {csv_path}，請先執行影片預習率匯出腳本。",
+        )
+
+    try:
+        text = csv_path.read_text(encoding="utf-8-sig")
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"讀取 {csv_path.name} 失敗：{exc}") from exc
+
+    reader = csv.DictReader(io.StringIO(text))
+    required_columns = {"student_id", "unit_code", "preview_score"}
+    if reader.fieldnames is None:
+        raise HTTPException(status_code=400, detail=f"{csv_path.name} 缺少表頭。")
+
+    missing_columns = required_columns - set(reader.fieldnames)
+    if missing_columns:
+        cols = ", ".join(sorted(missing_columns))
+        raise HTTPException(status_code=400, detail=f"{csv_path.name} 缺少必要欄位：{cols}")
+
+    records: list[StudentRecord] = []
+    parse_errors: list[str] = []
+    for row_num, row in enumerate(reader, start=2):
+        student_id = (row.get("student_id") or "").strip()
+        unit_code = (row.get("unit_code") or "").strip()
+        preview_score = _parse_float(row.get("preview_score"))
+
+        if not student_id or not unit_code:
+            parse_errors.append(f"第 {row_num} 列缺少 student_id 或 unit_code")
+            continue
+        if preview_score is None:
+            parse_errors.append(f"第 {row_num} 列的 preview_score 無法解析")
+            continue
+
+        records.append(
+            StudentRecord(
+                student_id=student_id,
+                unit_code=unit_code,
+                preview_score=preview_score,
+            )
+        )
+
+    return records, parse_errors
+
+
+def _build_student_lookup(
+    students: list[Student],
+) -> tuple[dict[str, int], dict[str, list[str]]]:
+    """Build exact and suffix-based student lookup maps."""
+
+    exact_map: dict[str, int] = {}
+    suffix_candidates: dict[str, list[tuple[str, int]]] = {}
+
+    for student in students:
+        if not student.student_id:
+            continue
+        exact_map[student.student_id] = student.id
+        suffix = student.student_id[-4:]
+        suffix_candidates.setdefault(suffix, []).append((student.student_id, student.id))
+
+    suffix_map: dict[str, list[str]] = {}
+    for suffix, matches in suffix_candidates.items():
+        if len(matches) == 1:
+            exact_map[suffix] = matches[0][1]
+        else:
+            suffix_map[suffix] = [match[0] for match in matches]
+
+    return exact_map, suffix_map
+
+
+def _build_preview_rates_summary_html(
+    records: list[StudentRecord],
+    parse_errors: list[str],
+    student_map: dict[str, int],
+    ambiguous_suffixes: dict[str, list[str]],
+) -> str:
+    """Render the preview/confirm fragment for preview_rates.csv import."""
+
+    csv_path = _preview_rates_path()
+    matched_students: set[str] = set()
+    matched_records = 0
+    not_found: list[str] = []
+    ambiguous: list[str] = []
+    unit_codes: set[str] = set()
+
+    for rec in records:
+        unit_codes.add(rec.unit_code)
+        if rec.student_id in student_map:
+            matched_students.add(rec.student_id)
+            matched_records += 1
+            continue
+        if rec.student_id in ambiguous_suffixes:
+            if rec.student_id not in ambiguous:
+                ambiguous.append(rec.student_id)
+            continue
+        if rec.student_id not in not_found:
+            not_found.append(rec.student_id)
+
+    stat = csv_path.stat()
+    modified_at = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M")
+
+    def _list_html(items: list[str], color_class: str, title: str) -> str:
+        if not items:
+            return ""
+        body = "".join(f'<li class="font-mono">{item}</li>' for item in items[:20])
+        extra = f"<li>…共 {len(items)} 筆</li>" if len(items) > 20 else ""
+        return f"""
+        <div class="mt-2">
+          <p class="{color_class} font-bold mb-1">{title}</p>
+          <ul class="{color_class} text-[10px] list-disc list-inside">{body}{extra}</ul>
+        </div>"""
+
+    preview_html = _list_html(
+        not_found,
+        "text-[var(--rpg-danger)]",
+        "以下 student_id 未註冊於本系統（例如未參與計畫），已略過：",
+    )
+    ambiguous_labels = [
+        f"{suffix}（{', '.join(ambiguous_suffixes[suffix][:3])}）" for suffix in ambiguous
+    ]
+    ambiguous_html = _list_html(
+        ambiguous_labels,
+        "text-[var(--rpg-danger)]",
+        "以下 student_id 對到多位學生，請先修正 CSV：",
+    )
+    parse_errors_html = _list_html(parse_errors, "text-[var(--rpg-danger)]", "CSV 解析錯誤：")
+
+    commit_html = ""
+    if matched_records > 0 and not ambiguous and not parse_errors:
+        commit_html = """
+        <form class="mt-3" id="preview-rates-commit-form">
+          <button type="submit"
+                  class="flex items-center gap-2 rounded px-4 py-2
+                         bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)]
+                         font-tc text-xs font-bold text-[var(--rpg-gold-bright)]
+                         transition-opacity hover:opacity-90">
+            確認更新影片預習分數
+          </button>
+        </form>"""
+
+    return f"""
+    <div class="rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)] p-4 mt-3">
+      <p class="font-tc text-xs font-bold text-[var(--rpg-gold)] mb-2">preview_rates.csv 預覽摘要</p>
+      <ul class="font-tc text-xs text-[var(--rpg-text-primary)] space-y-1">
+        <li>來源檔案：<span class="font-mono text-[var(--rpg-gold-bright)]">{csv_path}</span></li>
+        <li>最後更新：<span class="text-[var(--rpg-gold-bright)] font-bold">{modified_at}</span></li>
+        <li>CSV 資料列：<span class="text-[var(--rpg-gold-bright)] font-bold">{len(records)}</span> 筆</li>
+        <li>可更新記錄：<span class="text-[var(--rpg-gold-bright)] font-bold">{matched_records}</span> 筆</li>
+        <li>涉及單元：<span class="text-[var(--rpg-gold-bright)] font-bold">{", ".join(sorted(unit_codes)) or "無"}</span></li>
+        <li>比對到學生：<span class="text-[var(--rpg-gold-bright)] font-bold">{len(matched_students)}</span> 位</li>
+      </ul>
+      {preview_html}
+      {ambiguous_html}
+      {parse_errors_html}
+      {commit_html}
+    </div>"""
 
 
 # ─── Attribute Rules Management ──────────────────────────────────────
