@@ -73,14 +73,49 @@
           {{ card.rarity or 'N' }}
         </span>
       </div>
+      {% if card.border_style %}
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">邊框樣式</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-primary)]">{{ card.border_style }}</span>
+      </div>
+      {% endif %}
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">送出時間</span>
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">{{ card.created_at.strftime('%m/%d %H:%M:%S') }}</span>
+      </div>
       {% if card.generated_at %}
-      <div class="flex justify-between items-center">
-        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">生成時間</span>
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">完成時間</span>
         <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">
-          {{ card.generated_at.strftime('%m/%d %H:%M') if card.generated_at else '-' }}
+          {{ card.generated_at.strftime('%m/%d %H:%M:%S') }}
         </span>
       </div>
       {% endif %}
+      <div class="border-t border-[var(--rpg-gold-dark)]/20 my-1.5"></div>
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">最新一張</span>
+        {% if card.is_latest %}
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-success)]">✓ 是</span>
+        {% else %}
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">否</span>
+        {% endif %}
+      </div>
+      <div class="flex justify-between items-center mb-1">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">顯示於大廳</span>
+        {% if card.is_display %}
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-success)]">✓ 是</span>
+        {% else %}
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">否</span>
+        {% endif %}
+      </div>
+      <div class="flex justify-between items-center">
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">學生已刪除</span>
+        {% if card.is_hidden %}
+        <span class="font-tc text-[10px] font-bold text-[var(--rpg-danger)]">✓ 是</span>
+        {% else %}
+        <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">否</span>
+        {% endif %}
+      </div>
     </div>
     {% if reuse_simulation_url %}
     <a href="{{ reuse_simulation_url }}"

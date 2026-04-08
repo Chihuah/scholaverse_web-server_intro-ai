@@ -150,7 +150,7 @@ async def hall(request: Request, db: AsyncSession = Depends(get_db)):
 
     result = await db.execute(
         select(Card)
-        .where(Card.is_display == True)  # noqa: E712
+        .where(Card.is_display == True, Card.is_hidden == False)  # noqa: E712
         .options(selectinload(Card.student))
         .order_by(Card.level_number.desc())
     )
