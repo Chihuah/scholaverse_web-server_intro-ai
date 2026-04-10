@@ -44,7 +44,7 @@
       <div class="w-36 h-52 md:w-[180px] md:h-[260px] rounded overflow-hidden"
            style="border: 3px solid {{ border_color }};{% if border_style == 'gold' %} box-shadow: 0 0 8px 0 rgba(255,215,0,0.27);{% elif border_style == 'prismatic' %} box-shadow: 0 0 8px 0 rgba(217,70,239,0.3);{% endif %}">
         {% if hero_card.image_url %}
-        <img src="{{ hero_card.image_url | safe_img_url }}"
+        <img src="/api/images/card/{{ hero_card.id }}"
              alt="{{ hero_card.student.nickname or hero_card.student.name if hero_card.student else '冒險者' }}"
              class="w-full h-full object-cover">
         {% else %}

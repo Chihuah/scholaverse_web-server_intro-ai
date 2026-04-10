@@ -2,11 +2,12 @@
 
 POST /api/internal/generation-callback — AI worker completion callback
 GET  /api/images/proxy/{path}          — Proxy images from internal VMs over HTTPS
+GET  /api/images/card/{card_id}        — Anonymous image proxy for hall page (hides student ID)
 """
 
 import logging
 from datetime import datetime, timezone
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -116,6 +117,52 @@ async def proxy_image(path: str):
     urls = [
         f"{settings.DB_STORAGE_BASE_URL.rstrip('/')}/api/images/{path}",
         f"{settings.AI_WORKER_BASE_URL.rstrip('/')}/api/images/{path}",
+    ]
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for url in urls:
+            try:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    content_type = resp.headers.get("content-type", "image/png")
+                    return Response(
+                        content=resp.content,
+                        media_type=content_type,
+                        headers={
+                            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                            "Pragma": "no-cache",
+                            "Expires": "0",
+                        },
+                    )
+            except httpx.HTTPError:
+                continue
+    raise HTTPException(status_code=404, detail="Image not found")
+
+
+@image_proxy_router.get("/card/{card_id}")
+async def proxy_card_image(card_id: int, db: AsyncSession = Depends(get_db)):
+    """大廳用的匿名圖片代理：以 card ID 取代含學號的路徑，外部看不到學號。
+
+    內部仍透過 VM 內網路徑存取 db-storage，學號路徑不對外暴露。
+    """
+    result = await db.execute(select(Card).where(Card.id == card_id))
+    card = result.scalar_one_or_none()
+    if card is None or card.image_url is None:
+        raise HTTPException(status_code=404, detail="Card not found")
+
+    # 從 image_url（如 /api/images/proxy/students/xxx/cards/yyy.png?v=...）
+    # 提取實際圖片路徑 students/xxx/cards/yyy.png
+    parsed = urlparse(card.image_url)
+    raw_path = parsed.path
+    proxy_prefix = "/api/images/proxy/"
+    if raw_path.startswith(proxy_prefix):
+        image_path = raw_path[len(proxy_prefix):]
+    else:
+        image_path = raw_path.lstrip("/")
+
+    # 向 db-storage / ai-worker 取圖（與 proxy_image 相同邏輯）
+    urls = [
+        f"{settings.DB_STORAGE_BASE_URL.rstrip('/')}/api/images/{image_path}",
+        f"{settings.AI_WORKER_BASE_URL.rstrip('/')}/api/images/{image_path}",
     ]
     async with httpx.AsyncClient(timeout=30.0) as client:
         for url in urls:

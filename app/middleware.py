@@ -9,7 +9,7 @@ from app.database import async_session
 from app.services.auth import award_daily_login, get_user_by_email
 
 # Paths that don't require a registered user
-PUBLIC_PATHS = frozenset({"/register", "/static", "/api/internal", "/api/images/proxy", "/logout"})
+PUBLIC_PATHS = frozenset({"/register", "/static", "/api/internal", "/api/images/proxy", "/api/images/card", "/logout"})
 
 
 def _is_public(path: str) -> bool:
