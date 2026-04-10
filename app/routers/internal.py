@@ -146,7 +146,7 @@ async def proxy_card_image(card_id: int, db: AsyncSession = Depends(get_db)):
     """
     result = await db.execute(select(Card).where(Card.id == card_id))
     card = result.scalar_one_or_none()
-    if card is None or card.image_url is None:
+    if card is None or card.image_url is None or not card.is_display:
         raise HTTPException(status_code=404, detail="Card not found")
 
     # 從 image_url（如 /api/images/proxy/students/xxx/cards/yyy.png?v=...）
