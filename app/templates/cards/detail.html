@@ -99,6 +99,19 @@
     </div>
     {% endif %}
 
+    <!-- Seed display -->
+    {% if card.status == "completed" %}
+    <div class="flex flex-col gap-1.5">
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] mb-1">生成資訊</span>
+      <div class="grid grid-cols-[6rem_1fr] items-baseline gap-x-2">
+        <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">種子數</span>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]" id="card-seed-value">
+          {% if card.seed is not none %}{{ card.seed }}{% else %}隨機{% endif %}
+        </span>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- Card actions (logged-in user, completed card only) -->
     {% if user and card.status == "completed" %}
     <div class="flex gap-2 flex-wrap pt-3 border-t border-[var(--rpg-gold-dark)]">

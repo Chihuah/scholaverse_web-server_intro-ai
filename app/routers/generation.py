@@ -8,7 +8,10 @@ import json
 import math
 import logging
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -28,11 +31,22 @@ CARD_REGEN_COST = 5
 
 logger = logging.getLogger(__name__)
 
+class GenerateCardRequest(BaseModel):
+    seed: int = -1
+
+    @field_validator("seed")
+    @classmethod
+    def validate_seed(cls, v: int) -> int:
+        if v != -1 and v < 0:
+            raise ValueError("種子數必須為 -1（隨機）或正整數")
+        return v
+
 router = APIRouter(prefix="/api/cards", tags=["generation"])
 
 
 @router.post("/generate")
 async def generate_card(
+    body: Optional[GenerateCardRequest] = None,
     user: Student = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -73,6 +87,11 @@ async def generate_card(
             status_code=400,
             detail=f"代幣不足（重新生成需要 {token_cost} 代幣，目前餘額 {user.tokens}）",
         )
+
+    # Resolve requested seed: -1 or None means random (pass None to ai-worker)
+    requested_seed: Optional[int] = None
+    if body is not None and body.seed != -1:
+        requested_seed = body.seed
 
     # 1. Gather card configs for this student
     configs_result = await db.execute(
@@ -207,6 +226,7 @@ async def generate_card(
             student_nickname=user.nickname or user.name,
             card_config=card_config,
             learning_data=learning_data,
+            seed=requested_seed,
             ollama_model_override=ollama_model,
         )
         # Update card status to generating and persist job_id for polling
@@ -354,3 +374,22 @@ async def hide_card(
 
     await db.commit()
     return {"success": True}
+
+
+@router.get("/display-seed")
+async def get_display_card_seed(
+    user: Student = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the seed of the student's current display card."""
+    result = await db.execute(
+        select(Card).where(
+            Card.student_id == user.id,
+            Card.is_display == True,  # noqa: E712
+            Card.status == "completed",
+        ).limit(1)
+    )
+    card = result.scalar_one_or_none()
+    if card is None:
+        return {"seed": None, "card_id": None}
+    return {"seed": card.seed, "card_id": card.id}

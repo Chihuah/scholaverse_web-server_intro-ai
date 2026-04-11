@@ -438,6 +438,36 @@
 <div class="shrink-0 flex flex-col gap-2">
   <div id="gen-error" class="font-tc text-xs text-[var(--rpg-danger)] hidden"></div>
   {% if has_configs %}
+  <!-- Seed input row -->
+  <div class="flex items-center gap-2 flex-wrap">
+    <input id="seed-input" type="number" value="-1" min="-1"
+           class="w-40 rounded px-2.5 py-1.5 font-tc text-xs
+                  bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
+                  text-[var(--rpg-text-primary)] placeholder-[var(--rpg-text-secondary)]
+                  focus:outline-none focus:border-[var(--rpg-gold)]"
+           placeholder="種子數（-1 隨機）">
+    <button type="button"
+            onclick="copyDisplaySeed()"
+            class="flex items-center gap-1 rounded px-2.5 py-1.5
+                   bg-[var(--rpg-bg-panel)] border border-[var(--rpg-gold-dark)]
+                   font-tc text-xs text-[var(--rpg-text-secondary)]
+                   hover:border-[var(--rpg-gold)] hover:text-[var(--rpg-gold)] transition-colors">
+      <i data-lucide="copy" class="w-3 h-3"></i>
+      複製展示卡牌種子數
+    </button>
+    <!-- Info tooltip -->
+    <div class="relative flex items-center">
+      <i data-lucide="info" class="w-4 h-4 text-[var(--rpg-text-secondary)] cursor-help seed-info-icon"></i>
+      <div class="seed-tooltip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 z-10
+                  rounded bg-[var(--rpg-bg-panel)] border border-[var(--rpg-gold-dark)]
+                  px-3 py-2 font-tc text-xs text-[var(--rpg-text-secondary)] leading-relaxed
+                  pointer-events-none opacity-0 transition-opacity duration-200">
+        <p class="font-bold text-[var(--rpg-gold)] mb-1">關於種子數</p>
+        <p>種子數決定 AI 生圖時的隨機起點。設為 <span class="text-[var(--rpg-gold-bright)]">-1</span> 時每次都會隨機生成不同圖像。</p>
+        <p class="mt-1">輸入相同種子數可重現相近的畫面風格。按下「複製展示卡牌種子數」可將你目前展示中卡牌的種子數填入，方便以此為基礎再次生成。</p>
+      </div>
+    </div>
+  </div>
   <button id="gen-btn" onclick="generateCard()"
           class="flex items-center justify-center gap-2 rounded px-4 py-3 font-tc text-xs font-bold
                  bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)]
@@ -562,7 +592,19 @@ async function generateCard() {
   btn.innerHTML = '<svg class="animate-spin w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>生成中，請稍候…';
 
   try {
-    const resp = await fetch('/api/cards/generate', { method: 'POST' });
+    const seedVal = parseInt(document.getElementById('seed-input')?.value ?? '-1', 10);
+    const seedToSend = isNaN(seedVal) ? -1 : seedVal;
+    if (seedToSend !== -1 && seedToSend < 0) {
+      errEl.textContent = '種子數必須為 -1（隨機）或正整數';
+      errEl.classList.remove('hidden');
+      sessionStorage.removeItem(GEN_LOCK_KEY);
+      return;
+    }
+    const resp = await fetch('/api/cards/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seed: seedToSend }),
+    });
     const data = await resp.json();
     if (resp.status === 409) {
       // 後端確認已在生成中，導向卡牌頁面或顯示提示
@@ -591,6 +633,29 @@ async function generateCard() {
     }
   }
 }
+
+async function copyDisplaySeed() {
+  try {
+    const resp = await fetch('/api/cards/display-seed');
+    if (!resp.ok) { alert('取得種子數失敗'); return; }
+    const data = await resp.json();
+    const input = document.getElementById('seed-input');
+    if (!input) return;
+    if (data.seed === null || data.seed === undefined) {
+      alert('目前的展示卡牌沒有種子數資訊（可能為隨機生成）');
+      return;
+    }
+    input.value = data.seed;
+  } catch (e) {
+    alert('網路錯誤，請稍後再試');
+  }
+}
 </script>
+<style>
+.seed-info-icon:hover + .seed-tooltip {
+  opacity: 1;
+  pointer-events: auto;
+}
+</style>
 {% endif %}
 {% endblock %}
