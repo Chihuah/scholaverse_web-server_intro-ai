@@ -96,9 +96,19 @@
 
 <!-- Learning Records (Editable) -->
 <div class="flex flex-col gap-3 w-full shrink-0">
-  <div class="flex items-center gap-2">
-    <i data-lucide="scroll-text" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
-    <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">學習記錄</span>
+  <div class="flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2">
+      <i data-lucide="scroll-text" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">學習記錄</span>
+    </div>
+    <button type="button" onclick="copyRecordsToAdmin()"
+            class="flex items-center gap-1 rounded px-3 py-1.5
+                   bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                   font-tc text-xs font-bold text-[var(--rpg-gold)]
+                   hover:border-[var(--rpg-gold)] transition-colors">
+      <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+      複製記錄到管理員帳號
+    </button>
   </div>
   <div class="rounded bg-[var(--rpg-bg-panel)] border-2 border-[var(--rpg-gold-dark)] overflow-auto scrollbar-hide">
     <div class="min-w-[700px]">
@@ -408,6 +418,30 @@ async function unbindStudent() {
     showToast(data.message || '已解除綁定', 'success');
     setTimeout(() => { window.location.href = '/admin/students'; }, 1000);
   } catch (e) { showToast('請求失敗', 'error'); }
+}
+
+async function copyRecordsToAdmin() {
+  const studentName = {{ student.name | tojson }};
+  const sourceId = {{ student.id }};
+  if (!window.confirm(
+    `確定要將 ${studentName} 的學習記錄複製到管理員帳號嗎？\n\n` +
+    `這會覆蓋您目前的學習記錄。`
+  )) return;
+
+  try {
+    const res = await fetch(
+      `/api/admin/students/${sourceId}/copy-records-to-admin`,
+      { method: 'POST' }
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.detail || '複製失敗', 'error');
+      return;
+    }
+    showToast(data.message, data.status === 'ok' ? 'success' : 'error');
+  } catch (err) {
+    showToast('複製失敗：' + err.message, 'error');
+  }
 }
 </script>
 {% endblock %}

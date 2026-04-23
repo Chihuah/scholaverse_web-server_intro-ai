@@ -17,7 +17,7 @@ from sqlalchemy import case, delete, select, func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import require_teacher
+from app.dependencies import require_admin, require_teacher
 from app.models.attribute_rule import AttributeRule
 from app.models.card import Card
 from app.models.system_setting import SystemSetting
@@ -635,6 +635,59 @@ async def api_admin_update_record(
         "pretest_score": existing.pretest_score,
         "completion_rate": existing.completion_rate,
         "quiz_score": existing.quiz_score,
+    }
+
+
+@router.post("/api/admin/students/{source_student_pk}/copy-records-to-admin")
+async def api_admin_copy_records_to_admin(
+    source_student_pk: int,
+    admin: Student = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Copy all learning records from source student to the logged-in admin."""
+    source = (
+        await db.execute(select(Student).where(Student.id == source_student_pk))
+    ).scalar_one_or_none()
+    if source is None:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if source.id == admin.id:
+        return {
+            "status": "skipped",
+            "copied": 0,
+            "source_name": source.name,
+            "message": "來源與目標相同，已略過",
+        }
+
+    source_records = (
+        await db.execute(
+            select(LearningRecord).where(LearningRecord.student_id == source.id)
+        )
+    ).scalars().all()
+
+    await db.execute(
+        delete(LearningRecord).where(LearningRecord.student_id == admin.id)
+    )
+
+    now = datetime.now(timezone.utc)
+    for r in source_records:
+        db.add(LearningRecord(
+            student_id=admin.id,
+            unit_id=r.unit_id,
+            preview_score=r.preview_score,
+            pretest_score=r.pretest_score,
+            completion_rate=r.completion_rate,
+            quiz_score=r.quiz_score,
+            imported_at=now,
+            updated_at=now,
+        ))
+
+    await db.commit()
+    return {
+        "status": "ok",
+        "copied": len(source_records),
+        "source_name": source.name,
+        "message": f"已複製 {source.name} 的 {len(source_records)} 筆學習記錄",
     }
 
 
