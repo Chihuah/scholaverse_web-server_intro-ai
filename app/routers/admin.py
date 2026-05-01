@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import require_admin, require_teacher
+from app.models.achievement import ACHIEVEMENT_TYPES, StudentAchievement
 from app.models.attribute_rule import AttributeRule
 from app.models.card import Card
 from app.models.system_setting import SystemSetting
@@ -980,8 +981,20 @@ def _build_preview_html(
     parse_result: ExcelParseResult,
     student_map: dict[str, int],
     import_type: str,
+    award_preview: dict | None = None,
 ) -> str:
-    """Return an HTMX HTML fragment summarising the parse result."""
+    """Return an HTMX HTML fragment summarising the parse result.
+
+    The actual "確認匯入" button is rendered by the page-level JavaScript
+    (`commit-area`), so this fragment only contains the parse summary.
+
+    `award_preview` is an optional dict with shape::
+
+        {"achievements": int, "tokens": int, "breakdown": {key: count}}
+
+    used by the score-list import to estimate the auto-awards that will be
+    granted on commit.
+    """
     matched_ids: set[str] = set()
     not_found: list[str] = []
 
@@ -1012,31 +1025,31 @@ def _build_preview_html(
         cols = ", ".join(parse_result.unrecognized_headers[:10])
         unrecognized_html = f'<p class="mt-1 text-[10px] text-[var(--rpg-text-secondary)]">略過未識別欄位：{cols}</p>'
 
-    commit_endpoint = (
-        "/api/admin/import-excel/completion/commit"
-        if import_type == "completion"
-        else "/api/admin/import-excel/scores/commit"
-    )
-
-    confirm_btn = ""
-    if will_update > 0:
-        confirm_btn = f"""
-        <form class="mt-3" enctype="multipart/form-data"
-              hx-post="{commit_endpoint}"
-              hx-encoding="multipart/form-data"
-              hx-target="this"
-              hx-swap="outerHTML">
-          <input type="hidden" name="_preview_file_data" value="">
-          <button type="submit"
-                  class="flex items-center gap-2 rounded px-4 py-2
-                         bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)]
-                         font-tc text-xs font-bold text-[var(--rpg-gold-bright)]
-                         transition-opacity hover:opacity-90"
-                  onclick="this.closest('form').querySelector('[name=_preview_file_data]').value=window.__excelFile_{import_type} || ''; return true;"
-                  hx-include="closest form">
-            確認匯入
-          </button>
-        </form>"""
+    award_html = ""
+    if award_preview is not None:
+        ach_count = award_preview.get("achievements", 0)
+        tokens_total = award_preview.get("tokens", 0)
+        breakdown = award_preview.get("breakdown", {}) or {}
+        if ach_count > 0:
+            items = "".join(
+                f'<li>{ACHIEVEMENT_TYPES[k]["label"]} × <span class="text-[var(--rpg-gold-bright)] font-bold">{n}</span></li>'
+                for k, n in breakdown.items()
+                if k in ACHIEVEMENT_TYPES
+            )
+            award_html = f"""
+        <div class="mt-3 rounded border border-[var(--rpg-gold-dark)] bg-[var(--rpg-bg-panel)]/40 p-3">
+          <p class="font-tc text-xs font-bold text-[var(--rpg-gold)] mb-1">🎁 將自動發放</p>
+          <ul class="font-tc text-xs text-[var(--rpg-text-primary)] space-y-1">
+            <li>成就：<span class="text-[var(--rpg-gold-bright)] font-bold">{ach_count}</span> 個</li>
+            <li>點數：<span class="text-[var(--rpg-gold-bright)] font-bold">{tokens_total}</span> 點</li>
+          </ul>
+          <ul class="mt-1 font-tc text-[10px] text-[var(--rpg-text-secondary)] list-disc list-inside">{items}</ul>
+        </div>"""
+        else:
+            award_html = """
+        <p class="mt-3 font-tc text-[11px] text-[var(--rpg-text-secondary)]">
+          🎁 自動發放：本次無新增成就（皆已發放或無對應條件）
+        </p>"""
 
     return f"""
     <div class="rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)] p-4 mt-3">
@@ -1049,7 +1062,7 @@ def _build_preview_html(
       {not_found_html}
       {unrecognized_html}
       {errors_html}
-      {confirm_btn}
+      {award_html}
     </div>"""
 
 
@@ -1157,7 +1170,7 @@ async def api_excel_completion_commit(
     try:
         created, updated, warnings = await _upsert_records(
             db, parse_result.records, student_map, unit_map,
-            update_fields=("completion_rate", "quiz_score"),
+            update_fields=("completion_rate",),
         )
         await db.commit()
     except Exception as exc:
@@ -1181,6 +1194,167 @@ async def api_excel_completion_commit(
     </div>"""
 
 
+# ─── Score-list auto-award helpers ────────────────────────────────────
+
+# Map LearningRecord field → achievement-key suffix.
+_SCORE_FIELD_TO_KEY_SUFFIX: dict[str, str] = {
+    "pretest_score": "pretest",
+    "quiz_score": "complete",
+}
+
+# Chapters eligible for auto-award (unit_6 自主學習 has no pretest/post-test).
+_AUTO_AWARD_UNIT_CODES: tuple[str, ...] = (
+    "unit_1", "unit_2", "unit_3", "unit_4", "unit_5",
+)
+
+
+def _achievement_key_for(unit_code: str, field: str) -> str | None:
+    """Return achievement_key for (unit_code, field) or None if not eligible."""
+    if unit_code not in _AUTO_AWARD_UNIT_CODES:
+        return None
+    suffix = _SCORE_FIELD_TO_KEY_SUFFIX.get(field)
+    if suffix is None:
+        return None
+    chapter_num = unit_code.removeprefix("unit_")
+    return f"chapter_{chapter_num}_{suffix}"
+
+
+async def _compute_score_achievement_grants(
+    db: AsyncSession,
+    affected_student_pks: set[int],
+    overlay_records: list[StudentRecord] | None = None,
+    student_id_to_pk: dict[str, int] | None = None,
+) -> list[tuple[int, str]]:
+    """Return list of (student_pk, achievement_key) to grant.
+
+    Reads current LearningRecord state from DB for `affected_student_pks`,
+    then applies optional `overlay_records` (used by preview to simulate
+    the post-commit state without writing). Already-earned achievements
+    are filtered out via the StudentAchievement table.
+    """
+    if not affected_student_pks:
+        return []
+
+    # state[(student_pk, unit_code)] = (pretest_score, quiz_score)
+    state: dict[tuple[int, str], tuple[float | None, float | None]] = {}
+
+    rows = (await db.execute(
+        select(
+            LearningRecord.student_id,
+            Unit.code,
+            LearningRecord.pretest_score,
+            LearningRecord.quiz_score,
+        )
+        .join(Unit, LearningRecord.unit_id == Unit.id)
+        .where(
+            LearningRecord.student_id.in_(affected_student_pks),
+            Unit.code.in_(_AUTO_AWARD_UNIT_CODES),
+        )
+    )).all()
+    for sid, code, pretest, quiz in rows:
+        state[(sid, code)] = (pretest, quiz)
+
+    if overlay_records:
+        sid_to_pk = student_id_to_pk or {}
+        for rec in overlay_records:
+            if rec.unit_code not in _AUTO_AWARD_UNIT_CODES:
+                continue
+            sid = sid_to_pk.get(rec.student_id)
+            if sid is None:
+                continue
+            existing_pretest, existing_quiz = state.get((sid, rec.unit_code), (None, None))
+            new_pretest = rec.pretest_score if rec.pretest_score is not None else existing_pretest
+            new_quiz = rec.quiz_score if rec.quiz_score is not None else existing_quiz
+            state[(sid, rec.unit_code)] = (new_pretest, new_quiz)
+
+    candidates: list[tuple[int, str]] = []
+    for (sid, code), (pretest, quiz) in state.items():
+        pretest_key = _achievement_key_for(code, "pretest_score")
+        complete_key = _achievement_key_for(code, "quiz_score")
+        if pretest is not None and pretest_key:
+            candidates.append((sid, pretest_key))
+        if quiz is not None and complete_key:
+            candidates.append((sid, complete_key))
+
+    if not candidates:
+        return []
+
+    student_ids = {sid for sid, _ in candidates}
+    keys = {k for _, k in candidates}
+    already_rows = (await db.execute(
+        select(StudentAchievement.student_id, StudentAchievement.achievement_key)
+        .where(
+            StudentAchievement.student_id.in_(student_ids),
+            StudentAchievement.achievement_key.in_(keys),
+        )
+    )).all()
+    already = {(sid, key) for sid, key in already_rows}
+
+    return [(sid, key) for sid, key in candidates if (sid, key) not in already]
+
+
+def _summarize_grants(grants: list[tuple[int, str]]) -> dict:
+    """Aggregate grants → {achievements, tokens, breakdown}."""
+    breakdown: dict[str, int] = {}
+    tokens_total = 0
+    for _, key in grants:
+        spec = ACHIEVEMENT_TYPES.get(key)
+        if spec is None:
+            continue
+        breakdown[key] = breakdown.get(key, 0) + 1
+        tokens_total += int(spec.get("tokens", 0))
+    return {
+        "achievements": len(grants),
+        "tokens": tokens_total,
+        "breakdown": breakdown,
+    }
+
+
+async def _apply_score_achievement_grants(
+    db: AsyncSession,
+    grants: list[tuple[int, str]],
+) -> dict:
+    """Persist grants: bump student.tokens, write TokenTransaction +
+    StudentAchievement rows. Returns the same shape as `_summarize_grants`.
+    """
+    if not grants:
+        return _summarize_grants(grants)
+
+    now = datetime.now(timezone.utc)
+    student_ids = {sid for sid, _ in grants}
+    students = (await db.execute(
+        select(Student).where(Student.id.in_(student_ids))
+    )).scalars().all()
+    student_by_id = {s.id: s for s in students}
+
+    for sid, key in grants:
+        spec = ACHIEVEMENT_TYPES.get(key)
+        student = student_by_id.get(sid)
+        if spec is None or student is None:
+            continue
+        amount = int(spec.get("tokens", 0))
+        student.tokens = (student.tokens or 0) + amount
+        student.updated_at = now
+
+        tx = TokenTransaction(
+            student_id=sid,
+            amount=amount,
+            reason=spec.get("label"),
+            created_at=now,
+        )
+        db.add(tx)
+        await db.flush()  # populate tx.id
+
+        db.add(StudentAchievement(
+            student_id=sid,
+            achievement_key=key,
+            token_transaction_id=tx.id,
+            awarded_at=now,
+        ))
+
+    return _summarize_grants(grants)
+
+
 @router.post("/api/admin/import-excel/scores/preview", response_class=HTMLResponse)
 async def api_excel_scores_preview(
     request: Request,
@@ -1188,7 +1362,11 @@ async def api_excel_scores_preview(
     user: Student = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    """Parse score-list Excel and return an HTMX preview fragment."""
+    """Parse score-list Excel and return an HTMX preview fragment.
+
+    Also estimates the auto-award (achievements + tokens) that will be
+    granted if commit runs, so the admin sees the impact upfront.
+    """
     _validate_excel_upload(file)
     content = await file.read()
     if len(content) > _MAX_EXCEL_SIZE:
@@ -1199,7 +1377,20 @@ async def api_excel_scores_preview(
     students = (await db.execute(select(Student))).scalars().all()
     student_map = {s.student_id: s.id for s in students}
 
-    return _build_preview_html(parse_result, student_map, "scores")
+    affected_pks = {
+        student_map[r.student_id]
+        for r in parse_result.records
+        if r.student_id in student_map
+    }
+    grants = await _compute_score_achievement_grants(
+        db,
+        affected_student_pks=affected_pks,
+        overlay_records=parse_result.records,
+        student_id_to_pk=student_map,
+    )
+    award_preview = _summarize_grants(grants)
+
+    return _build_preview_html(parse_result, student_map, "scores", award_preview=award_preview)
 
 
 @router.post("/api/admin/import-excel/scores/commit", response_class=HTMLResponse)
@@ -1209,7 +1400,8 @@ async def api_excel_scores_commit(
     user: Student = Depends(require_teacher),
     db: AsyncSession = Depends(get_db),
 ):
-    """Re-parse and commit score-list Excel data to the database."""
+    """Re-parse and commit score-list Excel data to the database, then
+    auto-award chapter pretest / completion achievements (idempotent)."""
     _validate_excel_upload(file)
     content = await file.read()
     if len(content) > _MAX_EXCEL_SIZE:
@@ -1228,6 +1420,18 @@ async def api_excel_scores_commit(
             db, parse_result.records, student_map, unit_map,
             update_fields=("pretest_score", "quiz_score"),
         )
+        await db.flush()  # make upserts visible to the auto-award query
+
+        affected_pks = {
+            student_map[r.student_id]
+            for r in parse_result.records
+            if r.student_id in student_map
+        }
+        grants = await _compute_score_achievement_grants(
+            db, affected_student_pks=affected_pks
+        )
+        award_summary = await _apply_score_achievement_grants(db, grants)
+
         await db.commit()
     except Exception as exc:
         await db.rollback()
@@ -1239,6 +1443,30 @@ async def api_excel_scores_commit(
         items = "".join(f"<li>{w}</li>" for w in warnings[:20])
         warn_html = f'<ul class="mt-2 text-[var(--rpg-danger)] text-[10px] list-disc list-inside">{items}</ul>'
 
+    ach_count = award_summary["achievements"]
+    tokens_total = award_summary["tokens"]
+    breakdown = award_summary["breakdown"]
+    if ach_count > 0:
+        bd_items = "".join(
+            f'<li>{ACHIEVEMENT_TYPES[k]["label"]} × <span class="text-[var(--rpg-gold-bright)] font-bold">{n}</span></li>'
+            for k, n in breakdown.items()
+            if k in ACHIEVEMENT_TYPES
+        )
+        award_html = f"""
+      <div class="mt-3 rounded border border-[var(--rpg-gold-dark)] bg-[var(--rpg-bg-panel)]/40 p-3">
+        <p class="font-tc text-xs font-bold text-[var(--rpg-gold)] mb-1">🎁 自動發放完成</p>
+        <ul class="font-tc text-xs text-[var(--rpg-text-primary)] space-y-1">
+          <li>成就：<span class="text-[var(--rpg-gold-bright)] font-bold">{ach_count}</span> 個</li>
+          <li>點數：<span class="text-[var(--rpg-gold-bright)] font-bold">{tokens_total}</span> 點</li>
+        </ul>
+        <ul class="mt-1 font-tc text-[10px] text-[var(--rpg-text-secondary)] list-disc list-inside">{bd_items}</ul>
+      </div>"""
+    else:
+        award_html = """
+      <p class="mt-3 font-tc text-[11px] text-[var(--rpg-text-secondary)]">
+        🎁 自動發放：本次無新增成就（皆已發放或無對應條件）
+      </p>"""
+
     return f"""
     <div class="rounded bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold)] p-4 mt-3">
       <p class="font-tc text-xs font-bold text-[var(--rpg-gold)] mb-2">✓ 匯入完成</p>
@@ -1247,6 +1475,7 @@ async def api_excel_scores_commit(
         <li>更新：<span class="text-[var(--rpg-gold-bright)] font-bold">{updated}</span> 筆</li>
       </ul>
       {warn_html}
+      {award_html}
     </div>"""
 
 

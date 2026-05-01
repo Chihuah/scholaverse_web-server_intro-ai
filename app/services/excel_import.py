@@ -1,7 +1,7 @@
 """Excel import service — parses TronClass Excel reports into structured records.
 
 Two report types are supported:
-- Completion report (完成度_xxx.xlsx): completion_rate + quiz_score
+- Completion report (完成度_xxx.xlsx): completion_rate only
 - Score list report (score_list.xlsx): pretest_score + quiz_score
 """
 
@@ -142,6 +142,10 @@ def parse_completion_excel(file_bytes: bytes) -> ExcelParseResult:
     # Column mappings: list of (col_idx, unit_code, field_name)
     col_mappings: list[tuple[int, str, str]] = []
 
+    # Note: quiz score columns ("第X章 課後測驗") in this report only carry a
+    # binary completion marker ("100.0分" / "未完成"), not the real score.
+    # We deliberately ignore them here — actual quiz scores come from
+    # score_list.xlsx via parse_score_excel().
     for idx, header in enumerate(headers):
         if header is None:
             continue
@@ -152,12 +156,9 @@ def parse_completion_excel(file_bytes: bytes) -> ExcelParseResult:
             col_mappings.append((idx, COMPLETION_HEADER_MAP[h], "completion_rate"))
             continue
 
-        # Quiz score column (e.g. "第一章 課後測驗")
+        # Quietly skip the post-test marker columns (handled by score_list).
         if "課後測驗" in h:
-            unit_code = _chapter_unit_code(h)
-            if unit_code:
-                col_mappings.append((idx, unit_code, "quiz_score"))
-                continue
+            continue
 
         # Skip known non-data columns (rank, name, student id col, etc.)
         if idx <= 1:
@@ -176,27 +177,17 @@ def parse_completion_excel(file_bytes: bytes) -> ExcelParseResult:
             continue
         student_id = str(student_id).strip()
 
-        for col_idx, unit_code, field_name in col_mappings:
+        for col_idx, unit_code, _field_name in col_mappings:
             raw = row[col_idx] if col_idx < len(row) else None
-
-            if field_name == "completion_rate":
-                parsed = _parse_completion_rate(raw)
-            else:  # quiz_score
-                parsed = _parse_quiz_completion(raw)
-
+            parsed = _parse_completion_rate(raw)
             if parsed is None:
                 continue
 
-            # Find or create record for (student_id, unit_code)
             existing = _find_record(result.records, student_id, unit_code)
             if existing is None:
                 existing = StudentRecord(student_id=student_id, unit_code=unit_code)
                 result.records.append(existing)
-
-            if field_name == "completion_rate":
-                existing.completion_rate = parsed
-            else:
-                existing.quiz_score = parsed
+            existing.completion_rate = parsed
 
     return result
 
