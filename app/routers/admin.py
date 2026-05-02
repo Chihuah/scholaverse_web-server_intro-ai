@@ -7,7 +7,7 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 
@@ -2244,6 +2244,36 @@ _ATTR_DISPLAY = {
 }
 
 
+def _resolve_anchor_image_url(stored_url: str) -> str:
+    """Resolve a stored ``cards.image_url`` (relative proxy URL) to an absolute
+    URL that the ai-worker can fetch directly from db-storage.
+
+    ``cards.image_url`` is stored as ``/api/images/proxy/students/.../card_NNN.png?v=...``
+    by ``_image_path_to_url``. The ai-worker (192.168.60.110) is whitelisted in
+    db-storage's ALLOWED_READ_IPS, so we can convert this proxy path back to a
+    direct db-storage URL: ``{DB_STORAGE_BASE_URL}/api/images/students/.../card_NNN.png``
+    (cache-busting query string is dropped — db-storage doesn't need it).
+
+    If the stored URL is already absolute, it is returned unchanged.
+    """
+    parsed = urlparse(stored_url)
+    if parsed.scheme:
+        # Already absolute (defensive — cards.image_url shouldn't be like this
+        # under current logic but keep this branch for forward compatibility).
+        return stored_url
+
+    proxy_prefix = "/api/images/proxy/"
+    if parsed.path.startswith(proxy_prefix):
+        relative_image_path = parsed.path[len(proxy_prefix):]
+        db_base = settings.DB_STORAGE_BASE_URL.rstrip("/")
+        return f"{db_base}/api/images/{relative_image_path}"
+
+    # Fallback for unexpected shapes (e.g. /static/...): prepend web-server
+    # base so ai-worker still has *some* absolute URL to try.
+    web_base = settings.WEB_SERVER_BASE_URL.rstrip("/")
+    return f"{web_base}{parsed.path}"
+
+
 async def _get_or_create_simulation_student(db: AsyncSession) -> Student:
     """Get or create the SIMULATION pseudo-student."""
     result = await db.execute(
@@ -2360,6 +2390,23 @@ async def api_admin_simulation_generate(
         raise HTTPException(status_code=400, detail="backend 必須為 local 或 cloud")
     cloud_model_override: str | None = body.get("cloud_model") or None
 
+    # Phase 1b: anchor card for image edit. None or 0 / empty string means "no anchor".
+    anchor_raw = body.get("anchor_card_id")
+    anchor_card_id: int | None = None
+    if anchor_raw not in (None, "", 0, "0"):
+        try:
+            anchor_card_id = int(anchor_raw)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="anchor_card_id 必須為整數")
+        if anchor_card_id <= 0:
+            anchor_card_id = None
+
+    if anchor_card_id and backend_input != "cloud":
+        raise HTTPException(
+            status_code=400,
+            detail="image edit 僅支援雲端 backend；本地 backend 請選「不使用錨點」",
+        )
+
     seed_raw = body.get("seed")
     requested_seed: int | None = None
     if seed_raw not in (None, "", -1, "-1"):
@@ -2378,10 +2425,43 @@ async def api_admin_simulation_generate(
 
     sim_student = await _get_or_create_simulation_student(db)
 
+    # Resolve anchor card → reference_image_url. Must belong to the simulation
+    # student and be a completed card with a stored image_url.
+    reference_image_url: str | None = None
+    if anchor_card_id:
+        anchor_result = await db.execute(
+            select(Card).where(
+                Card.id == anchor_card_id,
+                Card.student_id == sim_student.id,
+            )
+        )
+        anchor_card = anchor_result.scalar_one_or_none()
+        if anchor_card is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"找不到模擬卡 #{anchor_card_id}（必須是同一個 SIMULATION 學生的卡）",
+            )
+        if anchor_card.status != "completed":
+            raise HTTPException(
+                status_code=400,
+                detail=f"錨點卡 #{anchor_card_id} 狀態為 {anchor_card.status}，必須是 completed 才能當參考圖",
+            )
+        if not anchor_card.image_url:
+            raise HTTPException(
+                status_code=400,
+                detail=f"錨點卡 #{anchor_card_id} 沒有 image_url（可能上傳失敗）",
+            )
+        reference_image_url = _resolve_anchor_image_url(anchor_card.image_url)
+        logger.info(
+            "Simulation: using anchor card #%d as reference (stored=%s, resolved=%s)",
+            anchor_card_id, anchor_card.image_url, reference_image_url,
+        )
+
     snapshot_for_storage = dict(card_config)
     snapshot_for_storage["__meta"] = {
         "nickname": nickname,
         "seed": requested_seed if requested_seed is not None else -1,
+        "anchor_card_id": anchor_card_id,
     }
 
     new_card = Card(
@@ -2395,6 +2475,7 @@ async def api_admin_simulation_generate(
         is_display=False,
         is_hidden=True,
         backend_used=backend_input,  # 預設為提交時選的 backend；若 fallback callback 會覆寫
+        reference_card_id=anchor_card_id,
     )
     db.add(new_card)
     await db.commit()
@@ -2419,6 +2500,8 @@ async def api_admin_simulation_generate(
             ollama_model_override=ollama_model,
             backend=backend_input,
             cloud_model=cloud_model_override,
+            reference_card_id=anchor_card_id,
+            reference_image_url=reference_image_url,
         )
         new_card.status = "generating"
         new_card.job_id = job_id

@@ -141,6 +141,24 @@
       </select>
       <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">雲端失敗會自動回退本地</span>
     </div>
+    <!-- Anchor Card (Phase 1b: image edit) -->
+    <div class="flex flex-col gap-2">
+      <label for="anchor-card-select" class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)]">錨點卡（圖生圖）</label>
+      <div class="flex items-center gap-2">
+        <select id="anchor-card-select"
+                class="rounded px-2 py-1.5 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                       font-tc text-xs text-[var(--rpg-text-primary)] w-56
+                       focus:outline-none focus:border-[var(--rpg-gold)] cursor-pointer
+                       disabled:opacity-50 disabled:cursor-not-allowed">
+          <option value="">（不使用錨點 - 產生全新角色）</option>
+        </select>
+        <div id="anchor-preview" class="hidden flex-shrink-0">
+          <img id="anchor-preview-img" src="" alt="anchor"
+               style="width:48px;height:72px;object-fit:cover;display:block;border:1px solid var(--rpg-gold-dark);"/>
+        </div>
+      </div>
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">僅雲端 backend 支援；選錨點後走 image edit 維持角色一致性</span>
+    </div>
   </div>
 </div>
 
@@ -323,6 +341,13 @@ async function submitSimulation() {
     }
   }
   const backend = document.getElementById('backend-select').value || 'local';
+  const anchorRaw = document.getElementById('anchor-card-select').value;
+  const anchor_card_id = anchorRaw ? Number.parseInt(anchorRaw, 10) : null;
+
+  if (anchor_card_id && backend !== 'cloud') {
+    showToast('錨點卡（image edit）僅支援雲端 backend，請改選雲端或將錨點設為「不使用」', 'error');
+    return;
+  }
 
   const btn = document.getElementById('submit-btn');
   btn.disabled = true;
@@ -333,7 +358,7 @@ async function submitSimulation() {
     const resp = await fetch('/api/admin/simulation/generate', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({card_config, level, rarity, nickname, seed, backend})
+      body: JSON.stringify({card_config, level, rarity, nickname, seed, backend, anchor_card_id})
     });
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
@@ -364,10 +389,83 @@ async function pollResults() {
     const resp = await fetch('/api/admin/simulation/cards', {cache: 'no-store'});
     const cards = await resp.json();
     renderResults(cards);
+    updateAnchorDropdown(cards);
     const stillGoing = cards.some(c => c.status === 'generating' || c.status === 'pending');
     if (stillGoing) _pollTimer = setTimeout(pollResults, 3000);
   } catch (e) {
     console.error('Poll error:', e);
+  }
+}
+
+// ── Anchor card (Phase 1b: image edit) ───────────────────────────────
+let _anchorCards = [];
+
+function isAnchorEligible(card) {
+  return card && card.status === 'completed' && card.thumbnail_url;
+}
+
+function updateAnchorDropdown(cards) {
+  const select = document.getElementById('anchor-card-select');
+  if (!select) return;
+  const eligible = (cards || []).filter(isAnchorEligible);
+  const previousValue = select.value;
+  const isFirstLoad = !select.dataset.initialized;
+
+  _anchorCards = eligible;
+
+  // Clear all options except the static "no anchor" sentinel
+  select.innerHTML = '<option value="">（不使用錨點 - 產生全新角色）</option>';
+  eligible.forEach(card => {
+    const opt = document.createElement('option');
+    opt.value = String(card.id);
+    const lv = card.level_number ? `Lv.${card.level_number}` : '';
+    opt.textContent = `#${card.id} ${card.rarity || 'N'} ${lv}`.trim();
+    select.appendChild(opt);
+  });
+
+  // Preserve previous selection when still valid; otherwise default to latest
+  // completed card on first load (cards array is newest-first per API).
+  if (previousValue && eligible.some(c => String(c.id) === previousValue)) {
+    select.value = previousValue;
+  } else if (isFirstLoad && eligible.length > 0) {
+    select.value = String(eligible[0].id);
+  }
+
+  select.dataset.initialized = '1';
+  syncAnchorPreview();
+  syncAnchorEnabledState();
+}
+
+function syncAnchorPreview() {
+  const select = document.getElementById('anchor-card-select');
+  const preview = document.getElementById('anchor-preview');
+  const img = document.getElementById('anchor-preview-img');
+  if (!select || !preview || !img) return;
+  const cardId = select.value;
+  if (!cardId) {
+    preview.classList.add('hidden');
+    img.src = '';
+    return;
+  }
+  const card = _anchorCards.find(c => String(c.id) === cardId);
+  if (card && card.thumbnail_url) {
+    img.src = card.thumbnail_url;
+    preview.classList.remove('hidden');
+  } else {
+    preview.classList.add('hidden');
+  }
+}
+
+function syncAnchorEnabledState() {
+  const backendSel = document.getElementById('backend-select');
+  const anchorSel = document.getElementById('anchor-card-select');
+  if (!backendSel || !anchorSel) return;
+  if (backendSel.value === 'local') {
+    anchorSel.value = '';
+    anchorSel.disabled = true;
+    syncAnchorPreview();
+  } else {
+    anchorSel.disabled = false;
   }
 }
 
@@ -498,10 +596,17 @@ function applyPresetFromQuery() {
   }
 }
 
-// ?? On page load: resume polling if any cards still generating ???????
+// On page load: resume polling if any cards still generating, and populate anchor dropdown
 document.addEventListener('DOMContentLoaded', () => {
   applyPresetFromQuery();
+  // Wire up anchor / backend listeners
+  const anchorSel = document.getElementById('anchor-card-select');
+  const backendSel = document.getElementById('backend-select');
+  if (anchorSel) anchorSel.addEventListener('change', syncAnchorPreview);
+  if (backendSel) backendSel.addEventListener('change', syncAnchorEnabledState);
+  // Initial fetch — populate anchor dropdown and resume polling if needed
   fetch('/api/admin/simulation/cards', {cache: 'no-store'}).then(r => r.json()).then(cards => {
+    updateAnchorDropdown(cards);
     const stillGoing = cards.some(c => c.status === 'generating' || c.status === 'pending');
     if (stillGoing) startPolling();
   }).catch(() => {});

@@ -33,6 +33,7 @@ class AIWorkerService(ABC):
         backend: str = "local",
         cloud_model: str | None = None,
         reference_card_id: int | None = None,
+        reference_image_url: str | None = None,
     ) -> str:
         """Submit learning data + card config to ai-worker for prompt generation
         and image creation. Returns job_id.
@@ -55,7 +56,12 @@ class AIWorkerService(ABC):
         cloud_model : str | None
             Override cloud model id (testing); ai-worker uses its default if None.
         reference_card_id : int | None
-            Phase 1b reference card for image-edit mode.
+            Phase 1b: anchor card ID (informational only, ai-worker logs it).
+        reference_image_url : str | None
+            Phase 1b: full URL of the anchor card's image. When provided
+            together with backend='cloud', ai-worker will use ``images.edit``
+            for character consistency. Required for cloud edit mode; ignored
+            for local backend.
         """
 
     @abstractmethod
@@ -82,6 +88,7 @@ class RealAIWorkerService(AIWorkerService):
         backend: str = "local",
         cloud_model: str | None = None,
         reference_card_id: int | None = None,
+        reference_image_url: str | None = None,
     ) -> str:
         job_id = str(uuid.uuid4())
         payload = {
@@ -98,6 +105,7 @@ class RealAIWorkerService(AIWorkerService):
             "backend": backend,
             "cloud_model": cloud_model,
             "reference_card_id": reference_card_id,
+            "reference_image_url": reference_image_url,
         }
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -146,6 +154,7 @@ class MockAIWorkerService(AIWorkerService):
         backend: str = "local",
         cloud_model: str | None = None,
         reference_card_id: int | None = None,
+        reference_image_url: str | None = None,
     ) -> str:
         job_id = str(uuid.uuid4())
         self._jobs[job_id] = {
@@ -159,6 +168,7 @@ class MockAIWorkerService(AIWorkerService):
             "backend": backend,
             "cloud_model": cloud_model,
             "reference_card_id": reference_card_id,
+            "reference_image_url": reference_image_url,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "image_path": None,
             "thumbnail_path": None,

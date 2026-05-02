@@ -81,11 +81,13 @@
       {% endif %}
       <div class="flex justify-between items-center mb-1 gap-2">
         <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">生圖後端</span>
-        {% if card.fallback_from_cloud %}
+        {% if card.fallback_from_cloud and card.backend_used == 'local' %}
         <span class="font-tc text-[10px] font-bold text-amber-300" title="{{ card.cloud_error or '雲端失敗，已自動回退本地' }}">雲→本地</span>
+        {% elif card.fallback_from_cloud and card.backend_used == 'cloud' %}
+        <span class="font-tc text-[10px] font-bold text-amber-300" title="{{ card.cloud_error or '雲端 image edit 失敗，已自動改用 image generate' }}">雲(edit→generate)</span>
         {% elif card.backend_used == 'cloud' %}
         <span class="font-tc text-[10px] font-bold text-sky-300">
-          雲端{% if card.cloud_quality %}（{{ card.cloud_quality }}）{% endif %}
+          雲端{% if card.cloud_mode %}（{{ card.cloud_mode }}{% if card.cloud_quality %} / {{ card.cloud_quality }}{% endif %}）{% elif card.cloud_quality %}（{{ card.cloud_quality }}）{% endif %}
         </span>
         {% else %}
         <span class="font-tc text-[10px] text-[var(--rpg-text-primary)]">本地 SD</span>
@@ -140,6 +142,33 @@
   </div>
 
   <div class="flex flex-col gap-3 flex-1 min-w-0">
+    {% if card.backend_used == 'cloud' %}
+    {# Cloud-generated cards send the same structured prompt to the image
+       model and store it in both card.prompt and card.final_prompt. Show
+       only one block to avoid redundant noise. #}
+    <div class="flex items-center gap-2">
+      <i data-lucide="wand-sparkles" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
+      <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">生圖提示詞</span>
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">（雲端模式直接送出，未經 LLM 改寫）</span>
+    </div>
+    {% set cloud_prompt_text = card.final_prompt or card.prompt %}
+    {% if cloud_prompt_text %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
+      <p class="font-tc text-xs leading-relaxed text-[var(--rpg-text-primary)] whitespace-pre-wrap break-words">{{ cloud_prompt_text }}</p>
+    </div>
+    {% elif card.status in ("generating", "pending") %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
+      <p class="font-tc text-xs text-[var(--rpg-warning)]">生成中，提示詞將在完成後顯示。</p>
+    </div>
+    {% else %}
+    <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
+      <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">生圖提示詞不可用。</p>
+    </div>
+    {% endif %}
+    {% else %}
+    {# Local SD path: card.prompt is the Ollama-rewritten prompt; card.final_prompt
+       additionally prepends the LoRA tag + style prefix, so the two strings differ
+       and both are useful for debugging. Show both blocks. #}
     <div class="flex items-center gap-2">
       <i data-lucide="bot" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
       <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">LLM 提示詞</span>
@@ -182,6 +211,7 @@
     <div class="rounded p-4 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]/40">
       <p class="font-tc text-xs text-[var(--rpg-text-secondary)]">最終提示詞不可用。</p>
     </div>
+    {% endif %}
     {% endif %}
 
     {% if show_admin_debug %}
@@ -235,7 +265,11 @@
         <div class="flex items-start gap-2">
           <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0"></i>
           <div class="min-w-0">
+            {% if card.backend_used == 'cloud' %}
+            <p class="font-tc text-[10px] font-bold text-amber-300 mb-0.5">雲端 image edit 失敗，已改用 image generate</p>
+            {% else %}
             <p class="font-tc text-[10px] font-bold text-amber-300 mb-0.5">雲端失敗已回退本地</p>
+            {% endif %}
             <p class="font-tc text-[10px] text-amber-200/80 break-words">{{ card.cloud_error }}</p>
           </div>
         </div>
