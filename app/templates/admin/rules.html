@@ -46,6 +46,30 @@
           </button>
         </div>
       </div>
+
+      <div class="rounded bg-[var(--rpg-bg-card)]/40 border border-[var(--rpg-gold-dark)] p-4">
+        <div class="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <p class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">{{ system_setting_labels['image_backend'] }}</p>
+            <p class="font-tc text-[10px] text-[var(--rpg-text-secondary)] mt-1">控制學生端生圖預設後端。本地（local）走校內 SD 並可調 seed；雲端（cloud）走 OpenAI gpt-image-2 並支援「保持角色一致」的 image edit。/admin/simulation 仍可逐次手動指定，與此預設值獨立。</p>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div class="flex-1 min-w-0">
+            <label for="image-backend-input" class="font-tc text-xs font-bold text-[var(--rpg-text-secondary)] block mb-1">學生端預設後端</label>
+            <select id="image-backend-input"
+                    class="w-full rounded px-3 py-2.5 bg-[var(--rpg-bg-input)] border-2 border-[var(--rpg-gold-dark)] font-tc text-xs text-[var(--rpg-text-primary)] focus:outline-none focus:border-[var(--rpg-gold)]">
+              <option value="local" {% if system_settings.get('image_backend', 'local') == 'local' %}selected{% endif %}>local — 本地 SD（預設）</option>
+              <option value="cloud" {% if system_settings.get('image_backend', 'local') == 'cloud' %}selected{% endif %}>cloud — OpenAI gpt-image-2（含 image edit）</option>
+            </select>
+          </div>
+          <button type="button"
+                  onclick="saveSystemSetting('image_backend', document.getElementById('image-backend-input').value)"
+                  class="rounded px-4 py-2 bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] font-tc text-xs font-bold text-[var(--rpg-gold-bright)] hover:opacity-90 transition-opacity whitespace-nowrap">
+            儲存參數
+          </button>
+        </div>
+      </div>
     </div>
   </section>
 

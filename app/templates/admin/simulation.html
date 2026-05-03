@@ -313,6 +313,23 @@ function randomizeSimulationAttributes() {
   showToast('已隨機挑選各單元屬性。');
 }
 
+// ── Attr value → display label (reads from on-page radio labels) ─────
+// 用於衝突訊息把 race / gender 的 raw key 轉成中文 label。若該 value 不
+// 在目前頁面的選項裡（例如錨點是別的 unit 的舊值），fallback 顯示 raw key。
+function attrValueLabel(attrType, value) {
+  if (!value) return '';
+  const group = document.querySelector(`[data-attr="${attrType}"]`);
+  if (!group) return value;
+  const radio = group.querySelector(`input[type="radio"][value="${value}"]`);
+  if (!radio) return value;
+  const label = radio.closest('label');
+  if (!label) return value;
+  // <label>...<span>key：中文label</span></label> → 取冒號後的中文
+  const text = (label.textContent || '').trim();
+  const colonIdx = text.indexOf('：');
+  return colonIdx >= 0 ? text.slice(colonIdx + 1).trim() : text;
+}
+
 // ── Submit simulation ────────────────────────────────────────────────
 async function submitSimulation() {
   const card_config = {};
@@ -347,6 +364,39 @@ async function submitSimulation() {
   if (anchor_card_id && backend !== 'cloud') {
     showToast('錨點卡（image edit）僅支援雲端 backend，請改選雲端或將錨點設為「不使用」', 'error');
     return;
+  }
+
+  // Phase 1b: race/gender conflict warning. image edit 會強制保留錨點的種族
+  // 與性別，後端會把所選 race/gender 覆蓋為錨點值以保持 metadata 與圖一致。
+  // 這裡只做提醒，使用者可自行決定是否繼續。
+  if (anchor_card_id) {
+    const anchorCard = _anchorCards.find(c => c.id === anchor_card_id);
+    if (anchorCard) {
+      const conflicts = [];
+      if (card_config.race && anchorCard.race && card_config.race !== anchorCard.race) {
+        conflicts.push(
+          `・種族：你選了「${attrValueLabel('race', card_config.race)}」，` +
+          `錨點卡是「${attrValueLabel('race', anchorCard.race)}」`
+        );
+      }
+      if (card_config.gender && anchorCard.gender && card_config.gender !== anchorCard.gender) {
+        conflicts.push(
+          `・性別：你選了「${attrValueLabel('gender', card_config.gender)}」，` +
+          `錨點卡是「${attrValueLabel('gender', anchorCard.gender)}」`
+        );
+      }
+      if (conflicts.length > 0) {
+        const msg =
+          '⚠️ 屬性衝突警告\n\n' +
+          conflicts.join('\n') + '\n\n' +
+          '雲端 image edit 會強制保留錨點卡的種族與性別，所以最終圖會跟錨點一致。\n' +
+          '為了讓卡牌資料與圖片不矛盾，後端會自動把你的種族/性別覆蓋為錨點的值。\n\n' +
+          '是否仍要繼續？';
+        if (!window.confirm(msg)) {
+          return;
+        }
+      }
+    }
   }
 
   const btn = document.getElementById('submit-btn');

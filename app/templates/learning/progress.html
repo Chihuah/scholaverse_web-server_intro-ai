@@ -434,48 +434,65 @@
   </div>
 </div>
 
-<!-- Generate card button -->
+<!-- Generate card button(s) — actual UI shape decided by /api/cards/generate-info on load -->
 <div class="shrink-0 flex flex-col gap-2">
   <div id="gen-error" class="font-tc text-xs text-[var(--rpg-danger)] hidden"></div>
   {% if has_configs %}
-  <!-- Seed input row -->
-  <div class="flex items-center gap-2 flex-wrap">
-    <input id="seed-input" type="number" value="-1" min="-1"
-           class="w-40 rounded px-2.5 py-1.5 font-tc text-xs
-                  bg-[var(--rpg-bg-input)] border border-[var(--rpg-gold-dark)]
-                  text-[var(--rpg-text-primary)] placeholder-[var(--rpg-text-secondary)]
-                  focus:outline-none focus:border-[var(--rpg-gold)]"
-           placeholder="種子數（-1 隨機）">
-    <button type="button"
-            onclick="copyDisplaySeed()"
-            class="flex items-center gap-1 rounded px-2.5 py-1.5
-                   bg-[var(--rpg-bg-panel)] border border-[var(--rpg-gold-dark)]
-                   font-tc text-xs text-[var(--rpg-text-secondary)]
-                   hover:border-[var(--rpg-gold)] hover:text-[var(--rpg-gold)] transition-colors">
-      <i data-lucide="copy" class="w-3 h-3"></i>
-      複製展示卡牌種子數
-    </button>
-    <!-- Info tooltip -->
-    <div class="relative flex items-center">
-      <i data-lucide="info" class="w-4 h-4 text-[var(--rpg-text-secondary)] cursor-help seed-info-icon"></i>
-      <div class="seed-tooltip absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 z-10
-                  rounded bg-[var(--rpg-bg-panel)] border border-[var(--rpg-gold-dark)]
-                  px-3 py-2 font-tc text-xs text-[var(--rpg-text-secondary)] leading-relaxed
-                  pointer-events-none opacity-0 transition-opacity duration-200">
-        <p class="font-bold text-[var(--rpg-gold)] mb-1">關於種子數</p>
-        <p>種子數決定 AI 生圖時的隨機起點。設為 <span class="text-[var(--rpg-gold-bright)]">-1</span> 時每次都會隨機生成不同圖像。</p>
-        <p class="mt-1">輸入相同種子數可重現相近的畫面風格。按下「複製展示卡牌種子數」可將你目前展示中卡牌的種子數填入，方便以此為基礎再次生成。</p>
-      </div>
+
+  {% set regen_label = '重新生成角色卡牌（消耗 ' ~ regen_cost ~ ' 代幣）' if has_cards else '生成我的角色卡牌（首次免費）' %}
+  {% set keep_suffix = '（消耗 ' ~ regen_cost ~ ' 代幣）' if has_cards else '（首次免費）' %}
+
+  <!-- LOCAL backend: seed input + single button (default, shown until generate-info loads) -->
+  <div id="gen-local-block" class="flex flex-col gap-2">
+    <div class="flex items-center gap-2">
+      <label for="seed-input" class="font-tc text-xs text-[var(--rpg-text-secondary)] shrink-0">
+        Seed
+      </label>
+      <input type="number" id="seed-input" value="-1" step="1" placeholder="-1"
+             class="rounded px-2 py-1 bg-[var(--rpg-bg-card)] border border-[var(--rpg-gold-dark)]
+                    font-tc text-xs text-[var(--rpg-text-primary)] w-28
+                    focus:outline-none focus:border-[var(--rpg-gold)]">
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">-1 或留空 = 隨機</span>
     </div>
+    <button id="gen-btn-local" onclick="generateCard('fresh')"
+            class="flex items-center justify-center gap-2 rounded px-4 py-3 font-tc text-xs font-bold
+                   bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)]
+                   transition-opacity hover:opacity-90 active:opacity-75 disabled:opacity-50 w-full">
+      <i data-lucide="sparkles" class="w-4 h-4"></i>
+      {{ regen_label }}
+    </button>
   </div>
-  <button id="gen-btn" onclick="generateCard()"
-          class="flex items-center justify-center gap-2 rounded px-4 py-3 font-tc text-xs font-bold
-                 bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)]
-                 transition-opacity hover:opacity-90 active:opacity-75 disabled:opacity-50 w-full">
-    <i data-lucide="sparkles" class="w-4 h-4"></i>
-    {% if has_cards %}重新生成角色卡牌（消耗 {{ regen_cost }} 代幣）
-    {% else %}生成我的角色卡牌（首次免費）{% endif %}
-  </button>
+
+  <!-- CLOUD backend with display card: dual button (保持一致 / 重塑全新) -->
+  <div id="gen-cloud-keep-block" class="hidden flex flex-col gap-2 sm:flex-row">
+    <button id="gen-btn-keep" onclick="generateCard('keep')"
+            class="flex items-center justify-center gap-2 rounded px-4 py-3 font-tc text-xs font-bold
+                   bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)]
+                   transition-opacity hover:opacity-90 active:opacity-75 disabled:opacity-50 flex-1">
+      <i data-lucide="user-check" class="w-4 h-4"></i>
+      保持角色一致{{ keep_suffix }}
+    </button>
+    <button id="gen-btn-fresh" onclick="generateCard('fresh')"
+            class="flex items-center justify-center gap-2 rounded px-4 py-3 font-tc text-xs font-bold
+                   bg-transparent border-2 border-[var(--rpg-gold-dark)] text-[var(--rpg-text-primary)]
+                   transition-opacity hover:border-[var(--rpg-gold)] hover:text-[var(--rpg-gold)]
+                   active:opacity-75 disabled:opacity-50 flex-1">
+      <i data-lucide="user-plus" class="w-4 h-4"></i>
+      重塑全新角色{{ keep_suffix }}
+    </button>
+  </div>
+
+  <!-- CLOUD backend without display card: single fresh button -->
+  <div id="gen-cloud-fresh-block" class="hidden flex flex-col gap-2">
+    <button id="gen-btn-cloud-fresh" onclick="generateCard('fresh')"
+            class="flex items-center justify-center gap-2 rounded px-4 py-3 font-tc text-xs font-bold
+                   bg-[var(--rpg-gold-dark)] border-2 border-[var(--rpg-gold)] text-[var(--rpg-gold-bright)]
+                   transition-opacity hover:opacity-90 active:opacity-75 disabled:opacity-50 w-full">
+      <i data-lucide="sparkles" class="w-4 h-4"></i>
+      {{ regen_label }}
+    </button>
+  </div>
+
   <p class="font-tc text-xs text-[var(--rpg-text-secondary)] text-center">
     {% if has_cards %}目前代幣餘額：{{ user.tokens }} 代幣
     {% else %}完成屬性設定後點擊生成，後續重新生成需消耗 {{ regen_cost }} 代幣{% endif %}
@@ -573,8 +590,60 @@ async function selectAttr(btn) {
 
 const GEN_LOCK_KEY = 'scholaverse_gen_in_flight';
 
-async function generateCard() {
-  const btn = document.getElementById('gen-btn');
+// Cached settings from /api/cards/generate-info
+let _imageBackend = 'local';
+let _displayCard = null;
+
+// ── Generate UI: fetch backend setting on load and pick the right block ──
+async function loadGenerateInfo() {
+  try {
+    const resp = await fetch('/api/cards/generate-info', { cache: 'no-store' });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    _imageBackend = data.image_backend || 'local';
+    _displayCard = data.display_card || null;
+  } catch (e) {
+    // Silently fall back to default local UI; user can still generate.
+    return;
+  } finally {
+    applyGenerateUI();
+  }
+}
+
+function applyGenerateUI() {
+  const localBlock = document.getElementById('gen-local-block');
+  const cloudKeep = document.getElementById('gen-cloud-keep-block');
+  const cloudFresh = document.getElementById('gen-cloud-fresh-block');
+  if (!localBlock || !cloudKeep || !cloudFresh) return;
+  localBlock.classList.add('hidden');
+  cloudKeep.classList.add('hidden');
+  cloudFresh.classList.add('hidden');
+  if (_imageBackend === 'cloud') {
+    if (_displayCard) {
+      cloudKeep.classList.remove('hidden');
+    } else {
+      cloudFresh.classList.remove('hidden');
+    }
+  } else {
+    localBlock.classList.remove('hidden');
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+// Read currently selected attribute value from the on-page attr-group buttons.
+function getSelectedAttr(attrType) {
+  const btn = document.querySelector(`#attr-group-${attrType} button.selected`);
+  return btn ? btn.dataset.attrValue : null;
+}
+
+// Look up the human label for an attribute value, falling back to raw key.
+function attrValueLabel(attrType, value) {
+  if (!value) return '';
+  const btn = document.querySelector(`#attr-group-${attrType} button[data-attr-value="${value}"]`);
+  return (btn && btn.dataset.attrLabel) ? btn.dataset.attrLabel : value;
+}
+
+async function generateCard(mode) {
   const errEl = document.getElementById('gen-error');
   errEl.classList.add('hidden');
   errEl.textContent = '';
@@ -586,28 +655,79 @@ async function generateCard() {
     return;
   }
 
+  // race/gender conflict warning when keeping consistency. Cloud image edit
+  // always preserves the anchor's race/gender; backend will overwrite the
+  // student's selection so metadata stays consistent with the produced image.
+  if (mode === 'keep' && _displayCard) {
+    const myRace = getSelectedAttr('race');
+    const myGender = getSelectedAttr('gender');
+    const conflicts = [];
+    if (myRace && _displayCard.race && myRace !== _displayCard.race) {
+      conflicts.push(
+        `・種族：你選的「${attrValueLabel('race', myRace)}」` +
+        `與目前展示卡的「${attrValueLabel('race', _displayCard.race)}」不同`
+      );
+    }
+    if (myGender && _displayCard.gender && myGender !== _displayCard.gender) {
+      conflicts.push(
+        `・性別：你選的「${attrValueLabel('gender', myGender)}」` +
+        `與目前展示卡的「${attrValueLabel('gender', _displayCard.gender)}」不同`
+      );
+    }
+    if (conflicts.length > 0) {
+      const msg =
+        '⚠️ 屬性衝突警告\n\n' +
+        conflicts.join('\n') + '\n\n' +
+        '「保持角色一致」會以目前的展示卡為基底，種族與性別會跟展示卡相同。\n' +
+        '為了讓卡牌資料與圖片一致，系統會自動把你選的種族/性別改為展示卡的值。\n' +
+        '若希望以新選擇生成全新角色，請改按「重塑全新角色」。\n\n' +
+        '是否仍要繼續？';
+      if (!window.confirm(msg)) return;
+    }
+  }
+
+  // Collect all candidate buttons that may show the spinner state.
+  const btnIds = ['gen-btn-local', 'gen-btn-keep', 'gen-btn-fresh', 'gen-btn-cloud-fresh'];
+  const buttons = btnIds.map(id => document.getElementById(id)).filter(Boolean);
+  const originals = buttons.map(b => b.innerHTML);
+  buttons.forEach(b => { b.disabled = true; });
+  // Show spinner on the button that was actually clicked (first visible button
+  // matching the mode is fine).
+  const activeBtn = buttons.find(b => !b.closest('.hidden')) || buttons[0];
+  if (activeBtn) {
+    activeBtn.innerHTML = '<svg class="animate-spin w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>生成中，請稍候…';
+  }
+
   sessionStorage.setItem(GEN_LOCK_KEY, '1');
-  btn.disabled = true;
-  const originalHtml = btn.innerHTML;
-  btn.innerHTML = '<svg class="animate-spin w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path></svg>生成中，請稍候…';
+
+  // Build request body. Only include seed when the local block is active and
+  // the user actually entered a value.
+  const body = { mode: mode || 'fresh' };
+  if (_imageBackend === 'local') {
+    const seedEl = document.getElementById('seed-input');
+    const seedRaw = seedEl ? seedEl.value.trim() : '';
+    if (seedRaw !== '' && seedRaw !== '-1') {
+      const seedNum = Number.parseInt(seedRaw, 10);
+      if (Number.isNaN(seedNum) || seedNum < 0) {
+        errEl.textContent = 'Seed 必須為非負整數，或留空/-1 表隨機';
+        errEl.classList.remove('hidden');
+        sessionStorage.removeItem(GEN_LOCK_KEY);
+        buttons.forEach((b, i) => { b.disabled = false; b.innerHTML = originals[i]; });
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+      body.seed = seedNum;
+    }
+  }
 
   try {
-    const seedVal = parseInt(document.getElementById('seed-input')?.value ?? '-1', 10);
-    const seedToSend = isNaN(seedVal) ? -1 : seedVal;
-    if (seedToSend !== -1 && seedToSend < 0) {
-      errEl.textContent = '種子數必須為 -1（隨機）或正整數';
-      errEl.classList.remove('hidden');
-      sessionStorage.removeItem(GEN_LOCK_KEY);
-      return;
-    }
     const resp = await fetch('/api/cards/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seed: seedToSend }),
+      body: JSON.stringify(body),
     });
     const data = await resp.json();
     if (resp.status === 409) {
-      // 後端確認已在生成中，導向卡牌頁面或顯示提示
       errEl.textContent = data.detail || '已有一張卡牌正在生成中，請稍候完成後再重試。';
       errEl.classList.remove('hidden');
       return;
@@ -617,15 +737,13 @@ async function generateCard() {
       errEl.classList.remove('hidden');
       return;
     }
-    // 成功後清除鎖定並導向卡牌頁面
     sessionStorage.removeItem(GEN_LOCK_KEY);
     window.location.href = '/cards/' + data.card_id;
   } catch (e) {
     errEl.textContent = '網路錯誤，請稍後再試';
     errEl.classList.remove('hidden');
   } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalHtml;
+    buttons.forEach((b, i) => { b.disabled = false; b.innerHTML = originals[i]; });
     if (window.lucide) lucide.createIcons();
     // 若未成功（未導頁），釋放鎖定讓使用者可重試
     if (sessionStorage.getItem(GEN_LOCK_KEY)) {
@@ -634,28 +752,7 @@ async function generateCard() {
   }
 }
 
-async function copyDisplaySeed() {
-  try {
-    const resp = await fetch('/api/cards/display-seed');
-    if (!resp.ok) { alert('取得種子數失敗'); return; }
-    const data = await resp.json();
-    const input = document.getElementById('seed-input');
-    if (!input) return;
-    if (data.seed === null || data.seed === undefined) {
-      alert('目前的展示卡牌沒有種子數資訊（可能為隨機生成）');
-      return;
-    }
-    input.value = data.seed;
-  } catch (e) {
-    alert('網路錯誤，請稍後再試');
-  }
-}
+document.addEventListener('DOMContentLoaded', loadGenerateInfo);
 </script>
-<style>
-.seed-info-icon:hover + .seed-tooltip {
-  opacity: 1;
-  pointer-events: auto;
-}
-</style>
 {% endif %}
 {% endblock %}

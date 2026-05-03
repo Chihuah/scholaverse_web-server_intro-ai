@@ -98,7 +98,11 @@ class RealAIWorkerService(AIWorkerService):
             "student_nickname": student_nickname,
             "card_config": card_config,
             "learning_data": learning_data,
-            "style_hint": "Hearthstone-style fantasy card art, digital oil painting, warm dramatic lighting, rich saturated colors, painterly brushwork, detailed character portrait",
+            # 空字串：style_profile 系統（7 種雲端 / 3 種本地隨機抽）已負責主風格，
+            # 過去寫死的 Hearthstone 字串太強勢會 override profile 多樣性。雲端 v2
+            # render 已忽略此欄位，本地 SD 在 style_hint 為空時也不會拼接，profile
+            # 多樣性即可正常呈現。未來若要由 admin 自訂 hint，從這裡傳入即可。
+            "style_hint": "",
             "seed": seed,
             "ollama_model_override": ollama_model_override,
             "callback_url": _callback_url(),

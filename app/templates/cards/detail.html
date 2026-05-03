@@ -188,7 +188,10 @@
         } else if (typeof data.queue_position === 'number' && data.queue_position >= 1) {
           statusText.innerHTML = 'AI 生成中…<br>請稍候';
           if (queueInfo) {
-            const mins = Math.ceil(data.queue_position * 2);
+            // 後端依本卡 backend_used 回傳 seconds_per_card（local≈25s、cloud≈120s）
+            const secsPer = (typeof data.seconds_per_card === 'number' && data.seconds_per_card > 0)
+              ? data.seconds_per_card : 120;
+            const mins = Math.max(1, Math.ceil((data.queue_position * secsPer) / 60));
             queueInfo.textContent = `佇列第 ${data.queue_position} 位，預估等待約 ${mins} 分鐘`;
             queueInfo.classList.remove('hidden');
           }

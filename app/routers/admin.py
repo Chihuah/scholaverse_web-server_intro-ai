@@ -2457,6 +2457,25 @@ async def api_admin_simulation_generate(
             anchor_card_id, anchor_card.image_url, reference_image_url,
         )
 
+        # image edit 會強制保留錨點的 face/race/body/gender/hair —— 若管理者
+        # 故意選了不一致的 race/gender，前端已先 confirm，這裡把錨點的 race/
+        # gender 寫回 card_config，確保 metadata 與最終圖一致（避免 UI 顯示
+        # 「亞洲男」但圖實際是「歐洲女」）
+        try:
+            anchor_cfg = json.loads(anchor_card.config_snapshot or "{}")
+        except (TypeError, ValueError):
+            anchor_cfg = {}
+        if isinstance(anchor_cfg, dict):
+            for attr in ("race", "gender"):
+                anchor_val = anchor_cfg.get(attr)
+                chosen_val = card_config.get(attr)
+                if anchor_val and chosen_val != anchor_val:
+                    logger.info(
+                        "Simulation anchor override: %s %r -> %r (from anchor #%d)",
+                        attr, chosen_val, anchor_val, anchor_card_id,
+                    )
+                    card_config[attr] = anchor_val
+
     snapshot_for_storage = dict(card_config)
     snapshot_for_storage["__meta"] = {
         "nickname": nickname,
@@ -2535,18 +2554,34 @@ async def api_admin_simulation_cards(
     )
     cards = cards_result.scalars().all()
 
-    return [
-        {
-            "id": c.id,
-            "status": c.status,
-            "thumbnail_url": c.thumbnail_url,
-            "image_url": c.image_url,
-            "level_number": c.level_number,
-            "rarity": c.rarity,
-            "created_at": c.created_at.isoformat() if c.created_at else None,
-        }
-        for c in cards
-    ]
+    def _parse_attrs(snapshot: str | None) -> tuple[str | None, str | None]:
+        if not snapshot:
+            return None, None
+        try:
+            cfg = json.loads(snapshot)
+        except (TypeError, ValueError):
+            return None, None
+        if not isinstance(cfg, dict):
+            return None, None
+        return cfg.get("race"), cfg.get("gender")
+
+    out = []
+    for c in cards:
+        race, gender = _parse_attrs(c.config_snapshot)
+        out.append(
+            {
+                "id": c.id,
+                "status": c.status,
+                "thumbnail_url": c.thumbnail_url,
+                "image_url": c.image_url,
+                "level_number": c.level_number,
+                "rarity": c.rarity,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "race": race,
+                "gender": gender,
+            }
+        )
+    return out
 
 
 @router.delete("/api/admin/simulation/cards")

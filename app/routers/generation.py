@@ -1,20 +1,20 @@
 """Card generation API routes.
 
-POST /api/cards/generate  — Submit card generation request
-GET  /api/cards/{id}/status — Poll generation status
+POST /api/cards/generate       — Submit card generation request
+GET  /api/cards/generate-info  — Read settings for the generate UI
+GET  /api/cards/{id}/status    — Poll generation status
 """
 
 import json
 import math
 import logging
+from urllib.parse import urlparse
 
-from typing import Optional
-
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.card import Card
@@ -29,24 +29,59 @@ from app.services import get_ai_worker_service
 # Tokens deducted when regenerating a card (first generation is free)
 CARD_REGEN_COST = 5
 
+# Allowed values for the global image_backend system setting.
+_ALLOWED_BACKENDS = ("local", "cloud")
+_DEFAULT_BACKEND = "local"
+
+# Per-card processing seconds for the queue ETA shown on the card-detail page.
+# Hard-coded constants — admin/generation-history exposes real elapsed times
+# (cards.generated_at - cards.created_at) if you want to recalibrate.
+_SECONDS_PER_CARD = {
+    "local": 25,
+    "cloud": 120,
+}
+
 logger = logging.getLogger(__name__)
-
-class GenerateCardRequest(BaseModel):
-    seed: int = -1
-
-    @field_validator("seed")
-    @classmethod
-    def validate_seed(cls, v: int) -> int:
-        if v != -1 and v < 0:
-            raise ValueError("種子數必須為 -1（隨機）或正整數")
-        return v
 
 router = APIRouter(prefix="/api/cards", tags=["generation"])
 
 
+def _resolve_reference_image_url(stored_url: str) -> str:
+    """Convert a stored ``cards.image_url`` (relative proxy URL) into an
+    absolute URL the ai-worker can fetch directly from db-storage.
+
+    Mirrors ``app.routers.admin._resolve_anchor_image_url`` — kept inline here
+    to avoid cross-router imports. If they ever drift, prefer extracting both
+    callers to ``app.services.storage``.
+    """
+    parsed = urlparse(stored_url)
+    if parsed.scheme:
+        return stored_url
+    proxy_prefix = "/api/images/proxy/"
+    if parsed.path.startswith(proxy_prefix):
+        relative_image_path = parsed.path[len(proxy_prefix):]
+        db_base = settings.DB_STORAGE_BASE_URL.rstrip("/")
+        return f"{db_base}/api/images/{relative_image_path}"
+    web_base = settings.WEB_SERVER_BASE_URL.rstrip("/")
+    return f"{web_base}{parsed.path}"
+
+
+async def _read_image_backend(db: AsyncSession) -> str:
+    """Read the global image_backend system setting; default to local."""
+    raw = await get_system_setting(db, "image_backend")
+    backend = (raw or _DEFAULT_BACKEND).strip().lower()
+    if backend not in _ALLOWED_BACKENDS:
+        logger.warning(
+            "Unknown image_backend setting %r — falling back to %s",
+            raw, _DEFAULT_BACKEND,
+        )
+        backend = _DEFAULT_BACKEND
+    return backend
+
+
 @router.post("/generate")
 async def generate_card(
-    body: Optional[GenerateCardRequest] = None,
+    request: Request,
     user: Student = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -54,7 +89,43 @@ async def generate_card(
 
     Gathers the student's current card configs and learning records,
     creates a Card row with status='pending', then submits to ai-worker.
+
+    Body (all optional):
+        mode: "keep" | "fresh" — only meaningful when global image_backend is
+            "cloud". "keep" routes the request through gpt-image-2 image edit
+            using the student's current display card as the reference image
+            (locks face/race/body/gender/hair). "fresh" runs cloud generate
+            with no reference. Default "fresh".
+        seed: int — only used when global image_backend is "local". Cloud
+            backend doesn't expose seed, so this is silently ignored there.
     """
+    # Parse body (best-effort — empty body == default mode/seed)
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+
+    mode_raw = (body.get("mode") or "fresh").strip().lower()
+    if mode_raw not in ("keep", "fresh"):
+        raise HTTPException(
+            status_code=400,
+            detail="mode 必須為 'keep' 或 'fresh'",
+        )
+
+    seed_raw = body.get("seed")
+    requested_seed: int | None = None
+    if seed_raw not in (None, "", -1, "-1"):
+        try:
+            requested_seed = int(seed_raw)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Seed 必須是整數")
+        if requested_seed < 0:
+            raise HTTPException(status_code=400, detail="Seed 不能為負數")
+
+    image_backend = await _read_image_backend(db)
+
     # 0. Check if this is a regeneration (user already has non-failed cards)
     existing_result = await db.execute(
         select(Card)
@@ -87,11 +158,6 @@ async def generate_card(
             status_code=400,
             detail=f"代幣不足（重新生成需要 {token_cost} 代幣，目前餘額 {user.tokens}）",
         )
-
-    # Resolve requested seed: -1 or None means random (pass None to ai-worker)
-    requested_seed: Optional[int] = None
-    if body is not None and body.seed != -1:
-        requested_seed = body.seed
 
     # 1. Gather card configs for this student
     configs_result = await db.execute(
@@ -168,6 +234,55 @@ async def generate_card(
 
     # expression / pose 未解鎖時不填預設值，由 ai-worker LLM 創意發揮
 
+    # 3.5 Determine effective backend + resolve reference card for "keep" mode.
+    # local backend ignores mode entirely (no image edit support); cloud + keep
+    # uses the student's current display card as reference and overrides the
+    # config's race/gender to the anchor's so metadata stays consistent with
+    # the produced image (gpt-image-2 image edit always preserves face/race/
+    # body/gender/hair from the reference).
+    effective_backend = image_backend  # may differ from `image_backend` later
+    reference_card_id: int | None = None
+    reference_image_url: str | None = None
+
+    if image_backend == "cloud" and mode_raw == "keep":
+        anchor_result = await db.execute(
+            select(Card).where(
+                Card.student_id == user.id,
+                Card.is_display == True,  # noqa: E712
+                Card.status == "completed",
+            )
+        )
+        anchor_card = anchor_result.scalar_one_or_none()
+        if anchor_card is not None and anchor_card.image_url:
+            reference_card_id = anchor_card.id
+            reference_image_url = _resolve_reference_image_url(anchor_card.image_url)
+            try:
+                anchor_cfg = json.loads(anchor_card.config_snapshot or "{}")
+            except (TypeError, ValueError):
+                anchor_cfg = {}
+            if isinstance(anchor_cfg, dict):
+                for attr in ("race", "gender"):
+                    anchor_val = anchor_cfg.get(attr)
+                    chosen_val = card_config.get(attr)
+                    if anchor_val and chosen_val != anchor_val:
+                        logger.info(
+                            "Student %s anchor override: %s %r -> %r (from card #%d)",
+                            user.id, attr, chosen_val, anchor_val, anchor_card.id,
+                        )
+                        card_config[attr] = anchor_val
+            logger.info(
+                "Student %s using display card #%d as reference (resolved=%s)",
+                user.id, anchor_card.id, reference_image_url,
+            )
+        else:
+            # No display card yet — silently degrade to "fresh" generate. This
+            # shouldn't happen via the dual-button UI (which hides "keep" when
+            # there is no display card), but guard the API anyway.
+            logger.info(
+                "Student %s requested mode=keep but has no display card; "
+                "falling back to fresh cloud generate", user.id,
+            )
+
     # 4. Mark previous latest card as not latest (keep track to restore on failure)
     prev_latest_result = await db.execute(
         select(Card).where(Card.student_id == user.id, Card.is_latest == True)  # noqa: E712
@@ -195,6 +310,8 @@ async def generate_card(
         rarity=rarity,
         is_latest=True,
         is_display=True,
+        backend_used=effective_backend,
+        reference_card_id=reference_card_id,
     )
     db.add(new_card)
 
@@ -219,6 +336,8 @@ async def generate_card(
     # 6. Submit to ai-worker
     ai_worker = get_ai_worker_service()
     ollama_model = await get_system_setting(db, "ollama_model")
+    # seed only meaningful for local SD; cloud backend ignores it
+    seed_for_worker = requested_seed if effective_backend == "local" else None
     try:
         job_id = await ai_worker.submit_generation(
             card_id=new_card.id,
@@ -226,8 +345,11 @@ async def generate_card(
             student_nickname=user.nickname or user.name,
             card_config=card_config,
             learning_data=learning_data,
-            seed=requested_seed,
+            seed=seed_for_worker,
             ollama_model_override=ollama_model,
+            backend=effective_backend,
+            reference_card_id=reference_card_id,
+            reference_image_url=reference_image_url,
         )
         # Update card status to generating and persist job_id for polling
         new_card.status = "generating"
@@ -269,6 +391,58 @@ async def generate_card(
     }
 
 
+@router.get("/generate-info")
+async def generate_info(
+    user: Student = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Settings for the student's generate UI.
+
+    The progress page calls this on load to decide whether to show the
+    "保持一致 / 重塑全新" dual button (cloud backend with a display card
+    available) vs the seed input (local backend) vs a single button.
+
+    Returns:
+        image_backend: "local" | "cloud"
+        display_card: { id, race, gender } | null
+            Present when the student has a completed display card whose
+            race/gender are known. The frontend uses these to warn about
+            race/gender conflicts before submitting a "keep" request.
+    """
+    backend = await _read_image_backend(db)
+
+    display_result = await db.execute(
+        select(Card).where(
+            Card.student_id == user.id,
+            Card.is_display == True,  # noqa: E712
+            Card.status == "completed",
+        )
+    )
+    display_card = display_result.scalar_one_or_none()
+
+    payload_card = None
+    if display_card is not None:
+        race = gender = None
+        if display_card.config_snapshot:
+            try:
+                cfg = json.loads(display_card.config_snapshot)
+                if isinstance(cfg, dict):
+                    race = cfg.get("race")
+                    gender = cfg.get("gender")
+            except (TypeError, ValueError):
+                pass
+        payload_card = {
+            "id": display_card.id,
+            "race": race,
+            "gender": gender,
+        }
+
+    return {
+        "image_backend": backend,
+        "display_card": payload_card,
+    }
+
+
 @router.get("/{card_id}/status")
 async def card_status(
     card_id: int,
@@ -292,6 +466,9 @@ async def card_status(
         "image_url": card.image_url,
         "thumbnail_url": card.thumbnail_url,
         "generated_at": card.generated_at.isoformat() if card.generated_at else None,
+        "seconds_per_card": _SECONDS_PER_CARD.get(
+            card.backend_used or "local", _SECONDS_PER_CARD["local"]
+        ),
     }
 
     # If still generating, poll ai-worker for live queue position
@@ -374,22 +551,3 @@ async def hide_card(
 
     await db.commit()
     return {"success": True}
-
-
-@router.get("/display-seed")
-async def get_display_card_seed(
-    user: Student = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Return the seed of the student's current display card."""
-    result = await db.execute(
-        select(Card).where(
-            Card.student_id == user.id,
-            Card.is_display == True,  # noqa: E712
-            Card.status == "completed",
-        ).limit(1)
-    )
-    card = result.scalar_one_or_none()
-    if card is None:
-        return {"seed": None, "card_id": None}
-    return {"seed": card.seed, "card_id": card.id}

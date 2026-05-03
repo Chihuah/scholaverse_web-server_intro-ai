@@ -11,10 +11,12 @@ from app.models.system_setting import SystemSetting
 
 SYSTEM_SETTING_DEFAULTS: dict[str, str] = {
     "ollama_model": "gemma4:e4b",
+    "image_backend": "local",
 }
 
 SYSTEM_SETTING_LABELS: dict[str, str] = {
     "ollama_model": "OLLAMA_MODEL",
+    "image_backend": "IMAGE_BACKEND",
 }
 
 SYSTEM_SETTING_ALLOWED_KEYS = set(SYSTEM_SETTING_DEFAULTS.keys())
@@ -25,6 +27,12 @@ OLLAMA_MODEL_SUGGESTIONS = [
     "qwen2.5:14b-instruct",
     "frob/qwen3.5-instruct:9b",
 ]
+
+# Allowed values for the global image-generation backend toggle. "local" routes
+# every student request through the on-prem Stable Diffusion (and image edit is
+# unavailable). "cloud" routes through OpenAI gpt-image-2 with image edit
+# support for keeping character consistency across cards.
+IMAGE_BACKEND_OPTIONS = ("local", "cloud")
 
 
 async def get_system_setting(db: AsyncSession, key: str) -> str:
