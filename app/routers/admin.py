@@ -460,7 +460,7 @@ async def admin_import_page(
     request: Request,
     user: Student = Depends(require_teacher),
 ):
-    """CSV import page."""
+    """成績匯入頁（TronClass Excel 報表）。"""
     return templates.TemplateResponse(
         request,
         "admin/import.html",
@@ -805,102 +805,6 @@ async def api_admin_batch_tokens(
         "skipped_names": skipped_names,
         "amount": amount,
         "student_ids": updated_ids,
-    }
-
-
-@router.post("/api/admin/import")
-async def api_admin_import(
-    file: UploadFile = File(...),
-    user: Student = Depends(require_teacher),
-    db: AsyncSession = Depends(get_db),
-):
-    """Import learning records from CSV.
-
-    Expected CSV columns:
-    student_id, unit_code, preview_score, completion_rate, quiz_score
-    """
-    if not file.filename or not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Please upload a CSV file")
-
-    content = await file.read()
-    text = content.decode("utf-8-sig")  # handle BOM
-    reader = csv.DictReader(io.StringIO(text))
-
-    created = 0
-    updated = 0
-    errors = []
-
-    for row_num, row in enumerate(reader, start=2):  # row 1 = header
-        try:
-            sid = row.get("student_id", "").strip()
-            unit_code = row.get("unit_code", "").strip()
-
-            if not sid or not unit_code:
-                errors.append(f"Row {row_num}: missing student_id or unit_code")
-                continue
-
-            # Find student by student_id field (not PK)
-            student_result = await db.execute(
-                select(Student).where(Student.student_id == sid)
-            )
-            student = student_result.scalar_one_or_none()
-            if student is None:
-                errors.append(f"Row {row_num}: student '{sid}' not found")
-                continue
-
-            # Find unit
-            unit_result = await db.execute(
-                select(Unit).where(Unit.code == unit_code)
-            )
-            unit = unit_result.scalar_one_or_none()
-            if unit is None:
-                errors.append(f"Row {row_num}: unit '{unit_code}' not found")
-                continue
-
-            # Parse scores
-            preview = _parse_float(row.get("preview_score"))
-            completion = _parse_float(row.get("completion_rate"))
-            quiz = _parse_float(row.get("quiz_score"))
-
-            # Upsert learning record
-            existing_result = await db.execute(
-                select(LearningRecord).where(
-                    LearningRecord.student_id == student.id,
-                    LearningRecord.unit_id == unit.id,
-                )
-            )
-            existing = existing_result.scalar_one_or_none()
-
-            if existing:
-                if preview is not None:
-                    existing.preview_score = preview
-                if completion is not None:
-                    existing.completion_rate = completion
-                if quiz is not None:
-                    existing.quiz_score = quiz
-                existing.updated_at = datetime.now(timezone.utc)
-                updated += 1
-            else:
-                lr = LearningRecord(
-                    student_id=student.id,
-                    unit_id=unit.id,
-                    preview_score=preview,
-                    completion_rate=completion,
-                    quiz_score=quiz,
-                )
-                db.add(lr)
-                created += 1
-
-        except Exception as e:
-            errors.append(f"Row {row_num}: {e}")
-
-    await db.commit()
-
-    return {
-        "created": created,
-        "updated": updated,
-        "total": created + updated,
-        "errors": errors[:20],  # cap error list
     }
 
 
