@@ -27,9 +27,12 @@ from app.models.learning_record import LearningRecord
 from app.models.student import Student
 from app.models.token_transaction import TokenTransaction
 from app.models.unit import Unit
+from app.models.homework_score import HomeworkScore
 from app.services.excel_import import (
     ExcelParseResult,
+    HomeworkRecord,
     StudentRecord,
+    compute_homework_completion,
     parse_completion_excel,
     parse_score_excel,
 )
@@ -982,6 +985,7 @@ def _build_preview_html(
     student_map: dict[str, int],
     import_type: str,
     award_preview: dict | None = None,
+    homework_count: int | None = None,
 ) -> str:
     """Return an HTMX HTML fragment summarising the parse result.
 
@@ -1025,6 +1029,13 @@ def _build_preview_html(
         cols = ", ".join(parse_result.unrecognized_headers[:10])
         unrecognized_html = f'<p class="mt-1 text-[10px] text-[var(--rpg-text-secondary)]">略過未識別欄位：{cols}</p>'
 
+    homework_html = ""
+    if homework_count:
+        homework_html = (
+            f'<li>作業成績：<span class="text-[var(--rpg-gold-bright)] font-bold">{homework_count}</span> 筆'
+            "（將重新計算第六章「自主學習」完成度）</li>"
+        )
+
     award_html = ""
     if award_preview is not None:
         ach_count = award_preview.get("achievements", 0)
@@ -1058,6 +1069,7 @@ def _build_preview_html(
         <li>比對到：<span class="text-[var(--rpg-gold-bright)] font-bold">{will_update}</span> 位學生</li>
         <li>將更新記錄：<span class="text-[var(--rpg-gold-bright)] font-bold">{len(parse_result.records)}</span> 筆</li>
         <li>找不到：<span class="text-[var(--rpg-danger)] font-bold">{len(not_found)}</span> 位學生</li>
+        {homework_html}
       </ul>
       {not_found_html}
       {unrecognized_html}
@@ -1123,6 +1135,103 @@ async def _upsert_records(
             updated += 1
 
     return created, updated, warnings
+
+
+async def _upsert_homework_scores(
+    db: AsyncSession,
+    homework: list[HomeworkRecord],
+    student_map: dict[str, int],
+) -> tuple[int, set[int], list[str]]:
+    """Upsert per-assignment homework scores.
+
+    Returns (upserted_count, affected_student_pks, warnings).
+    """
+    upserted = 0
+    affected: set[int] = set()
+    warnings: list[str] = []
+    now = datetime.now(timezone.utc)
+
+    for hw in homework:
+        student_pk = student_map.get(hw.student_id)
+        if student_pk is None:
+            warnings.append(f"作業成績：找不到學號 {hw.student_id}，已略過")
+            continue
+
+        existing = (
+            await db.execute(
+                select(HomeworkScore).where(
+                    HomeworkScore.student_id == student_pk,
+                    HomeworkScore.assignment_name == hw.assignment_name,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing is None:
+            db.add(
+                HomeworkScore(
+                    student_id=student_pk,
+                    assignment_name=hw.assignment_name,
+                    score=hw.score,
+                )
+            )
+        else:
+            existing.score = hw.score
+            existing.updated_at = now
+
+        upserted += 1
+        affected.add(student_pk)
+
+    return upserted, affected, warnings
+
+
+async def _recompute_unit6_completion(
+    db: AsyncSession,
+    student_pks: set[int],
+    unit_map: dict[str, int],
+) -> int:
+    """Recompute unit_6 completion_rate (全作業加權平均) for the given students.
+
+    Returns the number of learning records written.
+    """
+    unit6_pk = unit_map.get("unit_6")
+    if unit6_pk is None or not student_pks:
+        return 0
+
+    now = datetime.now(timezone.utc)
+    written = 0
+
+    for student_pk in student_pks:
+        rows = (
+            await db.execute(
+                select(HomeworkScore).where(HomeworkScore.student_id == student_pk)
+            )
+        ).scalars().all()
+        scores = {r.assignment_name: r.score for r in rows}
+        completion = compute_homework_completion(scores)
+
+        existing = (
+            await db.execute(
+                select(LearningRecord).where(
+                    LearningRecord.student_id == student_pk,
+                    LearningRecord.unit_id == unit6_pk,
+                )
+            )
+        ).scalar_one_or_none()
+
+        if existing is None:
+            db.add(
+                LearningRecord(
+                    student_id=student_pk,
+                    unit_id=unit6_pk,
+                    completion_rate=completion,
+                )
+            )
+        else:
+            existing.completion_rate = completion
+            existing.updated_at = now
+        written += 1
+
+    return written
 
 
 @router.post("/api/admin/import-excel/completion/preview", response_class=HTMLResponse)
@@ -1390,7 +1499,11 @@ async def api_excel_scores_preview(
     )
     award_preview = _summarize_grants(grants)
 
-    return _build_preview_html(parse_result, student_map, "scores", award_preview=award_preview)
+    return _build_preview_html(
+        parse_result, student_map, "scores",
+        award_preview=award_preview,
+        homework_count=len(parse_result.homework),
+    )
 
 
 @router.post("/api/admin/import-excel/scores/commit", response_class=HTMLResponse)
@@ -1420,6 +1533,15 @@ async def api_excel_scores_commit(
             db, parse_result.records, student_map, unit_map,
             update_fields=("pretest_score", "quiz_score"),
         )
+
+        # Homework scores drive unit_6 (自主學習) completion = 全作業加權平均
+        hw_count, hw_affected, hw_warnings = await _upsert_homework_scores(
+            db, parse_result.homework, student_map,
+        )
+        warnings.extend(hw_warnings)
+        await db.flush()  # make homework upserts visible to the recompute query
+        unit6_written = await _recompute_unit6_completion(db, hw_affected, unit_map)
+
         await db.flush()  # make upserts visible to the auto-award query
 
         affected_pks = {
@@ -1473,6 +1595,7 @@ async def api_excel_scores_commit(
       <ul class="font-tc text-xs text-[var(--rpg-text-primary)] space-y-1">
         <li>新增：<span class="text-[var(--rpg-gold-bright)] font-bold">{created}</span> 筆</li>
         <li>更新：<span class="text-[var(--rpg-gold-bright)] font-bold">{updated}</span> 筆</li>
+        <li>作業成績：<span class="text-[var(--rpg-gold-bright)] font-bold">{hw_count}</span> 筆，重算第六章完成度 <span class="text-[var(--rpg-gold-bright)] font-bold">{unit6_written}</span> 位學生</li>
       </ul>
       {warn_html}
       {award_html}

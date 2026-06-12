@@ -230,7 +230,6 @@ async def progress(
         rate = record.completion_rate if record and record.completion_rate else 0
 
         # Determine status
-        # Determine status
         if u.code == "unit_6":
             # unit_6 has no pretest/quiz; completion_rate is the only signal
             if record is not None and record.completion_rate and record.completion_rate > 0:
@@ -250,8 +249,13 @@ async def progress(
         chosen_attrs = {c.attribute_type: c.attribute_value for c in configs}
 
         # Get available options from scoring engine
+        # unit_6 has no quiz; the homework-weighted completion_rate is the unlock signal
         available = {}
-        if record and record.quiz_score is not None:
+        if u.code == "unit_6":
+            unit_unlocked = record is not None and (record.completion_rate or 0) > 0
+        else:
+            unit_unlocked = record is not None and record.quiz_score is not None
+        if unit_unlocked:
             available = await get_available_options(
                 u.code,
                 preview_score=record.preview_score,
@@ -371,7 +375,12 @@ async def unit_detail(
         chosen_attrs = {c.attribute_type: c.attribute_value for c in configs}
 
         # Get available options from scoring engine (only for real users)
-        if user and record and record.quiz_score is not None:
+        # unit_6 has no quiz; the homework-weighted completion_rate is the unlock signal
+        if unit_code == "unit_6":
+            unit_unlocked = record is not None and (record.completion_rate or 0) > 0
+        else:
+            unit_unlocked = record is not None and record.quiz_score is not None
+        if user and unit_unlocked:
             character_class = None
             if unit_code == "unit_4":
                 cls_result = await db.execute(

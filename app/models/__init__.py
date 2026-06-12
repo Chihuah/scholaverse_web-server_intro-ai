@@ -11,6 +11,7 @@ from app.models.attribute_rule import AttributeRule
 from app.models.announcement import Announcement, AnnouncementRead
 from app.models.achievement import StudentAchievement, ACHIEVEMENT_TYPES
 from app.models.system_setting import SystemSetting
+from app.models.homework_score import HomeworkScore
 
 __all__ = [
     "Base",
@@ -26,4 +27,5 @@ __all__ = [
     "StudentAchievement",
     "ACHIEVEMENT_TYPES",
     "SystemSetting",
+    "HomeworkScore",
 ]

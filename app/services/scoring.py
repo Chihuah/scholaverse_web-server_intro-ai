@@ -331,7 +331,12 @@ async def get_available_options(
     db : AsyncSession | None
         If provided, query attribute_rules table. Otherwise use hardcoded.
     """
-    exp = _learning_exp(preview_score, completion_rate, quiz_score)
+    if unit_code == "unit_6":
+        # unit_6（自主學習）沒有預習/測驗，completion_rate（全作業加權平均）
+        # 即為全額 EXP，與 generation/admin 的計算一致。
+        exp = completion_rate or 0.0
+    else:
+        exp = _learning_exp(preview_score, completion_rate, quiz_score)
 
     if db is not None:
         result = await _get_available_options_from_db(

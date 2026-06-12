@@ -156,10 +156,10 @@
         </div>
       </div>
 
-      <!-- 課程完成度 -->
+      <!-- 課程完成度（unit_6 顯示為作業平均） -->
       <div class="flex flex-col gap-0.5 w-full">
         <div class="flex items-center justify-between">
-          <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">課程完成度</span>
+          <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">{% if is_unit6 %}作業平均{% else %}課程完成度{% endif %}</span>
           {% if cv is none %}
           <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">—</span>
           {% else %}
