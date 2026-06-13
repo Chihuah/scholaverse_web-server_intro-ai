@@ -126,24 +126,41 @@ def test_unit_6_options_full_completion_reaches_tier_s():
     options = asyncio.run(
         get_available_options("unit_6", completion_rate=95.0)
     )
-    assert options["expression"]["options"] == ["regal"]
-    assert options["pose"]["options"] == ["victorious"]
+    assert options["expression"]["options"] == ["auto", "regal"]
+    assert options["pose"]["options"] == ["auto", "victorious"]
 
 
 def test_unit_6_options_mid_completion():
     options = asyncio.run(
         get_available_options("unit_6", completion_rate=65.0)
     )
-    assert options["expression"]["options"] == ["confident"]
-    assert options["pose"]["options"] == ["standing"]
+    assert options["expression"]["options"] == ["auto", "confident"]
+    assert options["pose"]["options"] == ["auto", "standing"]
 
 
 def test_unit_6_options_zero_completion_is_tier_d():
     options = asyncio.run(
         get_available_options("unit_6", completion_rate=0.0)
     )
-    assert options["expression"]["options"] == ["contemplative"]
-    assert options["pose"]["options"] == ["sitting"]
+    assert options["expression"]["options"] == ["auto", "contemplative"]
+    assert options["pose"]["options"] == ["auto", "sitting"]
+
+
+def test_unit_6_auto_option_labeled_and_first():
+    options = asyncio.run(
+        get_available_options("unit_6", completion_rate=85.0)
+    )
+    for attr in ("expression", "pose"):
+        assert options[attr]["options"][0] == "auto"
+        assert options[attr]["labels"]["auto"] == "預設（隨機生成）"
+
+
+def test_other_units_do_not_get_auto_option():
+    options = asyncio.run(
+        get_available_options("unit_1", preview_score=90, completion_rate=90, quiz_score=90)
+    )
+    assert "auto" not in options["race"]["options"]
+    assert "auto" not in options["gender"]["options"]
 
 
 def test_unit_6_pose_tiers_are_all_distinct():

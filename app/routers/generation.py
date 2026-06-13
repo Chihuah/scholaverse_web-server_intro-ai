@@ -23,6 +23,7 @@ from app.models.learning_record import LearningRecord
 from app.models.student import Student
 from app.models.token_transaction import TokenTransaction
 from app.models.unit import Unit
+from app.services.scoring import AUTO_OPTION_KEY
 from app.services.system_settings import get_system_setting
 from app.services import get_ai_worker_service
 
@@ -192,8 +193,12 @@ async def generate_card(
 
     card_config: dict = {}
     for cfg in configs:
-        if cfg.unit_id in active_unit_ids:
-            card_config[cfg.attribute_type] = cfg.attribute_value
+        if cfg.unit_id not in active_unit_ids:
+            continue
+        # 「預設（隨機生成）」：不送出該屬性，由 ai-worker 隨機抽選
+        if cfg.attribute_value == AUTO_OPTION_KEY:
+            continue
+        card_config[cfg.attribute_type] = cfg.attribute_value
 
     unit_scores: dict = {}
     total_exp_sum = 0.0

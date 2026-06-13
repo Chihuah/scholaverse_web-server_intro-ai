@@ -300,6 +300,36 @@ POSE_LABELS: dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# 「預設（隨機生成）」虛擬選項 — 僅 unit_6 表情/姿勢
+# 選擇此值時，生成卡牌不會送出該屬性，ai-worker 會依 camera archetype 隨機抽選。
+# ---------------------------------------------------------------------------
+AUTO_OPTION_KEY = "auto"
+AUTO_OPTION_LABEL = "預設（隨機生成）"
+AUTO_OPTION_ATTRS: dict[str, tuple[str, ...]] = {
+    "unit_6": ("expression", "pose"),
+}
+
+
+def _inject_auto_option(unit_code: str, result: dict) -> dict:
+    """Prepend the auto (random) option to applicable attribute groups."""
+    auto_attrs = AUTO_OPTION_ATTRS.get(unit_code)
+    if not auto_attrs or not result:
+        return result
+
+    output: dict = {}
+    for attr_type, payload in result.items():
+        if attr_type in auto_attrs:
+            options = [AUTO_OPTION_KEY] + [
+                o for o in payload["options"] if o != AUTO_OPTION_KEY
+            ]
+            labels = {AUTO_OPTION_KEY: AUTO_OPTION_LABEL, **payload["labels"]}
+            output[attr_type] = {"options": options, "labels": labels}
+        else:
+            output[attr_type] = payload
+    return output
+
+
 # ===================================================================
 # Public API
 # ===================================================================
@@ -351,11 +381,14 @@ async def get_available_options(
             character_class=character_class,
         )
         if result:
-            return result
+            return _inject_auto_option(unit_code, result)
 
-    return _get_available_options_hardcoded(
-        unit_code, exp,
-        character_class=character_class,
+    return _inject_auto_option(
+        unit_code,
+        _get_available_options_hardcoded(
+            unit_code, exp,
+            character_class=character_class,
+        ),
     )
 
 
