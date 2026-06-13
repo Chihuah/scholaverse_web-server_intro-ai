@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Scholaverse 卡牌 favicon — 像素風金框卡牌 + 閃光 -->
+  <!-- 金色外框 -->
+  <rect x="3" y="1" width="10" height="14" fill="#d4a847"/>
+  <!-- 深色卡面 -->
+  <rect x="4" y="2" width="8" height="12" fill="#16120c"/>
+  <!-- 四角飾點 -->
+  <rect x="4" y="2" width="1" height="1" fill="#8a6d2f"/>
+  <rect x="11" y="2" width="1" height="1" fill="#8a6d2f"/>
+  <rect x="4" y="13" width="1" height="1" fill="#8a6d2f"/>
+  <rect x="11" y="13" width="1" height="1" fill="#8a6d2f"/>
+  <!-- 中央閃光（四芒星） -->
+  <rect x="7" y="4" width="2" height="8" fill="#d4a847"/>
+  <rect x="5" y="6" width="6" height="4" fill="#d4a847"/>
+  <rect x="7" y="6" width="2" height="4" fill="#f6e27a"/>
+  <rect x="6" y="7" width="4" height="2" fill="#f6e27a"/>
+  <rect x="7" y="7" width="2" height="2" fill="#fffbe6"/>
+</svg>
