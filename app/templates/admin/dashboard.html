@@ -212,11 +212,27 @@
 </script>
 
 <!-- Unit Averages Section -->
+{# 分數格：數值 + 顏色 + 進度條（綠≥70 / 黃≥40 / 紅）。value 為 none 時顯示 — #}
+{% macro score_cell(value) %}
+  {% if value is none %}
+    <span class="font-tc text-xs text-[var(--rpg-text-secondary)]">—</span>
+  {% else %}
+    {% set col = 'var(--rpg-success)' if value >= 70 else ('var(--rpg-warning)' if value >= 40 else 'var(--rpg-danger)') %}
+    <div class="flex flex-col gap-1">
+      <span class="font-tc text-xs font-bold" style="color: {{ col }}">{{ value }}</span>
+      <div class="h-1.5 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
+        <div class="h-full rounded-sm" style="width: {{ [value, 100] | min }}%; background: {{ col }}"></div>
+      </div>
+    </div>
+  {% endif %}
+{% endmacro %}
+
 <div class="flex flex-col gap-3 flex-1 min-h-0">
   <div class="flex flex-col gap-1 w-full sm:flex-row sm:items-center sm:justify-between shrink-0">
     <div class="flex items-center gap-2">
       <i data-lucide="bar-chart-3" class="w-4 h-4 text-[var(--rpg-gold)]"></i>
       <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)]">各單元平均成績</span>
+      <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)]">（{{ real_student_total }} 位修課學生，不含示範帳號）</span>
     </div>
     <a href="/admin/students"
        class="flex items-center gap-1.5 font-tc text-xs text-[var(--rpg-gold)] hover:text-[var(--rpg-gold-bright)] transition-colors">
@@ -229,27 +245,80 @@
   <!-- Unit stats table -->
   <div class="flex flex-col flex-1 min-h-0 rounded bg-[var(--rpg-bg-panel)]
               border-2 border-[var(--rpg-gold-dark)] overflow-auto scrollbar-hide">
-    <div class="min-w-[480px]">
+    <div class="min-w-[620px]">
       <!-- Header row -->
-      <div class="flex items-center gap-4 px-5 py-3 bg-[var(--rpg-bg-card)]
+      <div class="flex items-center gap-3 px-5 py-3 bg-[var(--rpg-bg-card)]
                   border-b border-[var(--rpg-gold-dark)] sticky top-0 z-10">
-        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-20">單元代碼</span>
-        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] flex-1">單元名稱</span>
-        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-20 text-center">平均測驗</span>
-        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-20 text-center">平均完成率</span>
-        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-16 text-center">記錄數</span>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] flex-1 min-w-[150px]">單元</span>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-16 text-center">平均測驗</span>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-16 text-center">完成率</span>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-32">學習 EXP（Tier）</span>
+        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-20 text-center">完成人數</span>
       </div>
       <!-- Data rows -->
       {% if unit_stats %}
       {% for u in unit_stats %}
-      <div class="flex items-center gap-4 px-5 py-2.5 border-b border-[var(--rpg-bg-input)]
+      {% set tc = '#d4a847' if u.tier == 'S' else ('#4ade80' if u.tier == 'A' else ('#60a5fa' if u.tier == 'B' else ('#f59e0b' if u.tier == 'C' else '#f87171'))) %}
+      {% set done_pct = (u.completed / u.total * 100) if u.total else 0 %}
+      <div class="flex items-center gap-3 px-5 py-3 border-b border-[var(--rpg-bg-input)]
                   hover:bg-[var(--rpg-bg-card)]/50
                   {% if loop.index is odd %}bg-[var(--rpg-bg-card)]/20{% endif %}">
-        <span class="font-tc text-xs font-bold text-[var(--rpg-gold)] w-20">{{ u.code }}</span>
-        <span class="font-tc text-xs text-[var(--rpg-text-primary)] flex-1">{{ u.name }}</span>
-        <span class="font-tc text-xs text-[var(--rpg-text-primary)] w-20 text-center">{{ u.avg_quiz }}</span>
-        <span class="font-tc text-xs text-[var(--rpg-text-primary)] w-20 text-center">{{ u.avg_completion }}</span>
-        <span class="font-tc text-xs text-[var(--rpg-text-secondary)] w-16 text-center">{{ u.record_count }}</span>
+
+        <!-- 單元：編號徽章 + 名稱 + 屬性 -->
+        <div class="flex items-center gap-2.5 flex-1 min-w-[150px]">
+          <span class="flex items-center justify-center w-6 h-6 rounded shrink-0 font-pixel text-[10px]
+                       text-[var(--rpg-gold)] bg-[var(--rpg-gold-dark)]/30 border border-[var(--rpg-gold-dark)]">
+            {{ u.num }}
+          </span>
+          <div class="flex flex-col min-w-0">
+            <span class="font-tc text-xs font-bold text-[var(--rpg-text-primary)] truncate">{{ u.name }}</span>
+            <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] truncate">{{ u.attr_label }}</span>
+          </div>
+        </div>
+
+        {% if u.pending_homework %}
+        <!-- 第六章作業尚未評分 -->
+        <span class="w-16 text-center font-tc text-xs text-[var(--rpg-text-secondary)]">—</span>
+        <div class="w-16 flex justify-center">
+          <span class="font-tc text-[10px] text-[var(--rpg-text-secondary)] px-2 py-1 rounded
+                       border border-[var(--rpg-gold-dark)]">待評分</span>
+        </div>
+        <span class="w-32 font-tc text-[10px] text-[var(--rpg-text-secondary)]">作業評分後自動計算</span>
+        <span class="w-20 text-center font-tc text-xs text-[var(--rpg-text-secondary)]">0 / {{ u.total }}</span>
+        {% else %}
+
+        <!-- 平均測驗 -->
+        <div class="w-16">{{ score_cell(u.avg_quiz) }}</div>
+
+        <!-- 完成率（unit_6 為作業平均） -->
+        <div class="w-16">
+          {{ score_cell(u.avg_completion) }}
+          {% if u.is_homework %}<span class="font-tc text-[9px] text-[var(--rpg-text-secondary)]">作業均</span>{% endif %}
+        </div>
+
+        <!-- 學習 EXP + Tier 徽章 + 進度條 -->
+        <div class="w-32 flex items-center gap-2">
+          <span class="flex items-center justify-center w-6 h-6 rounded shrink-0 font-pixel text-xs"
+                style="color: {{ tc }}; background: {{ tc }}18; border: 1px solid {{ tc }}55">{{ u.tier }}</span>
+          <div class="flex-1 flex flex-col gap-1 min-w-0">
+            <span class="font-tc text-xs font-bold" style="color: {{ tc }}">{{ u.avg_exp }}</span>
+            <div class="h-1.5 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
+              <div class="h-full rounded-sm" style="width: {{ [u.avg_exp, 100] | min }}%; background: {{ tc }}"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 完成人數 -->
+        <div class="w-20 flex flex-col gap-1">
+          <span class="font-tc text-xs text-center text-[var(--rpg-text-primary)]">
+            {{ u.completed }}<span class="text-[var(--rpg-text-secondary)]"> / {{ u.total }}</span>
+          </span>
+          <div class="h-1.5 rounded-sm bg-[var(--rpg-bg-input)] overflow-hidden">
+            <div class="h-full rounded-sm bg-[var(--rpg-gold)]" style="width: {{ done_pct }}%"></div>
+          </div>
+        </div>
+        {% endif %}
+
       </div>
       {% endfor %}
       {% else %}

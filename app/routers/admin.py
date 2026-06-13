@@ -138,6 +138,32 @@ def _student_unit_exp(unit: Unit, lr: LearningRecord | None) -> float | None:
     return round(pv + cv + qv, 1)
 
 
+# 各單元解鎖屬性的顯示標籤（與學生端 pages.py 一致）
+UNIT_ATTR_LABELS = {
+    "unit_1": "種族 / 性別",
+    "unit_2": "職業 / 體型",
+    "unit_3": "服飾裝備",
+    "unit_4": "武器",
+    "unit_5": "背景場景",
+    "unit_6": "表情 / 姿勢",
+}
+
+
+def _exp_tier(exp: float | None) -> str | None:
+    """學習 EXP → S/A/B/C/D（與 scoring.py 的 tier 門檻一致）。"""
+    if exp is None:
+        return None
+    if exp >= 90:
+        return "S"
+    if exp >= 80:
+        return "A"
+    if exp >= 60:
+        return "B"
+    if exp >= 40:
+        return "C"
+    return "D"
+
+
 # ─── HTML Pages ───────────────────────────────────────────────────────
 
 
@@ -165,40 +191,73 @@ async def admin_dashboard(
         )
     ).scalar() or 0
 
-    # Average scores per unit
+    # Average scores per unit — 僅計真實修課學生（排除 DEMO 示範帳號與非 student 角色）
     units_result = await db.execute(select(Unit).order_by(Unit.sort_order))
     units = units_result.scalars().all()
 
+    real_ids_result = await db.execute(
+        select(Student.id).where(
+            Student.role == "student",
+            ~Student.student_id.like("DEMO%"),
+        )
+    )
+    real_student_ids = {row[0] for row in real_ids_result.all()}
+    real_student_total = len(real_student_ids)
+
+    # 一次撈取所有相關學習紀錄，於 Python 端聚合（取代 N+1 查詢）
+    lr_by_unit: dict[int, list[LearningRecord]] = {}
+    if real_student_ids:
+        lr_result = await db.execute(
+            select(LearningRecord).where(
+                LearningRecord.student_id.in_(real_student_ids)
+            )
+        )
+        for lr in lr_result.scalars().all():
+            lr_by_unit.setdefault(lr.unit_id, []).append(lr)
+
     unit_stats = []
-    for unit in units:
+    for idx, unit in enumerate(units, start=1):
+        records = lr_by_unit.get(unit.id, [])
+        is_unit6 = unit.code == "unit_6"
+
+        # 平均測驗 — 第六章設計上無測驗，不計（顯示為 —）
+        quizzes = [r.quiz_score for r in records if r.quiz_score is not None]
         avg_quiz = (
-            await db.execute(
-                select(func.avg(LearningRecord.quiz_score)).where(
-                    LearningRecord.unit_id == unit.id
-                )
-            )
-        ).scalar()
-        avg_completion = (
-            await db.execute(
-                select(func.avg(LearningRecord.completion_rate)).where(
-                    LearningRecord.unit_id == unit.id
-                )
-            )
-        ).scalar()
-        record_count = (
-            await db.execute(
-                select(func.count(LearningRecord.id)).where(
-                    LearningRecord.unit_id == unit.id
-                )
-            )
-        ).scalar() or 0
+            round(sum(quizzes) / len(quizzes), 1)
+            if quizzes and not is_unit6
+            else None
+        )
+
+        # 完成率 — 第六章此值為作業加權平均
+        completions = [r.completion_rate for r in records if r.completion_rate is not None]
+        avg_completion = round(sum(completions) / len(completions), 1) if completions else 0.0
+
+        # 學習 EXP — 逐生計算後取平均（與卡牌屬性解鎖同口徑）
+        exps = [e for e in (_student_unit_exp(unit, r) for r in records) if e is not None]
+        avg_exp = round(sum(exps) / len(exps), 1) if exps else 0.0
+
+        # 完成人數
+        if is_unit6:
+            completed = sum(1 for r in records if (r.completion_rate or 0) > 0)
+        else:
+            completed = sum(1 for r in records if (r.quiz_score or 0) > 0)
+
+        # 第六章作業尚未評分的狀態（避免把「未評分」誤呈現為 0 分）
+        pending_homework = is_unit6 and completed == 0 and avg_completion == 0.0
 
         unit_stats.append({
+            "num": idx,
             "code": unit.code,
             "name": unit.name,
-            "avg_quiz": round(avg_quiz, 1) if avg_quiz else 0,
-            "avg_completion": round(avg_completion, 1) if avg_completion else 0,
-            "record_count": record_count,
+            "attr_label": UNIT_ATTR_LABELS.get(unit.code, unit.unlock_attribute),
+            "avg_quiz": avg_quiz,
+            "avg_completion": avg_completion,
+            "is_homework": is_unit6,
+            "avg_exp": avg_exp,
+            "tier": _exp_tier(avg_exp),
+            "completed": completed,
+            "total": real_student_total,
+            "pending_homework": pending_homework,
         })
 
     return templates.TemplateResponse(
@@ -210,6 +269,7 @@ async def admin_dashboard(
             "total_cards": total_cards,
             "completed_cards": completed_cards,
             "unit_stats": unit_stats,
+            "real_student_total": real_student_total,
         },
     )
 
