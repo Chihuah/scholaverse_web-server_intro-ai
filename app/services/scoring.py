@@ -263,32 +263,39 @@ BACKGROUND_LABELS: dict[str, str] = {
 # ---------------------------------------------------------------------------
 EXPRESSION_OPTIONS: dict[str, list[str]] = {
     "S": ["regal"],
-    "A": ["passionate"],
+    "A": ["triumphant"],
     "B": ["confident"],
     "C": ["calm"],
-    "D": ["weary"],
+    "D": ["contemplative"],
 }
 
+# 舊 key（passionate/weary）保留 label 供歷史卡牌資料顯示
 EXPRESSION_LABELS: dict[str, str] = {
     "regal": "王者風範",
-    "passionate": "激昂",
+    "triumphant": "意氣風發",
     "confident": "自信",
     "calm": "平靜",
+    "contemplative": "沉思",
+    "passionate": "激昂",
     "weary": "疲憊",
 }
 
 POSE_OPTIONS: dict[str, list[str]] = {
-    "S": ["charging"],
+    "S": ["victorious"],
     "A": ["battle_ready"],
     "B": ["standing"],
-    "C": ["crouching"],
-    "D": ["crouching"],
+    "C": ["kneeling"],
+    "D": ["sitting"],
 }
 
+# 舊 key（charging/crouching）保留 label 供歷史卡牌資料顯示
 POSE_LABELS: dict[str, str] = {
-    "charging": "衝鋒陷陣",
+    "victorious": "凱旋之姿",
     "battle_ready": "持武器備戰",
     "standing": "站立",
+    "kneeling": "單膝跪地",
+    "sitting": "席地而坐",
+    "charging": "衝鋒陷陣",
     "crouching": "蹲坐",
 }
 

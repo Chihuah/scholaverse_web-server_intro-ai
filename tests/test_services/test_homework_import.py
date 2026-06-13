@@ -127,7 +127,7 @@ def test_unit_6_options_full_completion_reaches_tier_s():
         get_available_options("unit_6", completion_rate=95.0)
     )
     assert options["expression"]["options"] == ["regal"]
-    assert options["pose"]["options"] == ["charging"]
+    assert options["pose"]["options"] == ["victorious"]
 
 
 def test_unit_6_options_mid_completion():
@@ -142,4 +142,12 @@ def test_unit_6_options_zero_completion_is_tier_d():
     options = asyncio.run(
         get_available_options("unit_6", completion_rate=0.0)
     )
-    assert options["expression"]["options"] == ["weary"]
+    assert options["expression"]["options"] == ["contemplative"]
+    assert options["pose"]["options"] == ["sitting"]
+
+
+def test_unit_6_pose_tiers_are_all_distinct():
+    from app.services.scoring import POSE_OPTIONS
+
+    seen = [opts[0] for opts in POSE_OPTIONS.values()]
+    assert len(seen) == len(set(seen)), "每個 tier 的姿勢選項必須彼此不同"
