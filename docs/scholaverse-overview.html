@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scholaverse 專案總覽</title>
+<style>
+  :root {
+    --bg: #131322;
+    --bg2: #1a1a2e;
+    --panel: #1e1e33;
+    --panel2: #23233c;
+    --line: #35355a;
+    --gold: #d4a847;
+    --gold-dim: #a9852f;
+    --parch: #e8dcc3;
+    --ink: #d6cfc0;
+    --muted: #9a94a8;
+    --green: #7fb069;
+    --blue: #5b8dd9;
+    --purple: #a06cd5;
+    --red: #d9705b;
+    --n: #8b93a3;
+    --r: #5b8dd9;
+    --sr: #a06cd5;
+    --ssr: #d4a847;
+  }
+  html { background: var(--bg); }
+  body {
+    background:
+      radial-gradient(1200px 500px at 50% -10%, #26264400, #26264455 40%, transparent 70%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Segoe UI", sans-serif;
+    line-height: 1.75;
+    margin: 0;
+    padding: 0 20px 80px;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+
+  /* ---------- hero ---------- */
+  header.hero {
+    text-align: center;
+    padding: 64px 16px 40px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 48px;
+  }
+  .hero .kicker {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: .22em;
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+    padding: 5px 14px;
+    border-radius: 2px;
+    margin-bottom: 22px;
+    background: #d4a84711;
+  }
+  .hero h1 {
+    font-family: Georgia, "Times New Roman", "Microsoft JhengHei", serif;
+    font-size: clamp(34px, 6vw, 54px);
+    margin: 0 0 6px;
+    color: var(--parch);
+    letter-spacing: .04em;
+  }
+  .hero h1 .accent { color: var(--gold); }
+  .hero .sub {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 640px;
+    margin: 10px auto 0;
+  }
+  .hero .meta {
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+    margin-top: 26px; font-size: 13px;
+  }
+  .hero .meta span {
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 5px 13px; border-radius: 999px; color: var(--ink);
+  }
+  .hero .meta b { color: var(--gold); font-weight: 600; }
+  .hero .meta a { color: var(--gold); text-decoration: none; border-bottom: 1px dotted var(--gold-dim); }
+  .hero .meta a:hover { border-bottom-style: solid; }
+
+  /* ---------- sections ---------- */
+  section { margin: 0 0 60px; }
+  h2 {
+    font-family: Georgia, "Times New Roman", "Microsoft JhengHei", serif;
+    font-size: 25px; color: var(--parch);
+    margin: 0 0 4px; letter-spacing: .03em;
+  }
+  h2::before { content: "◆ "; color: var(--gold); font-size: .7em; vertical-align: 2px; }
+  .lede { color: var(--muted); font-size: 14.5px; margin: 0 0 24px; max-width: 760px; }
+  h3 { font-size: 16px; color: var(--parch); margin: 26px 0 10px; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 20px 22px;
+  }
+  .scrollx { overflow-x: auto; }
+
+  /* ---------- core loop ---------- */
+  .loop { display: flex; align-items: stretch; gap: 0; min-width: 700px; }
+  .loop .step {
+    flex: 1; text-align: center; padding: 18px 10px 16px;
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; position: relative;
+  }
+  .loop .step .ico { font-size: 26px; display: block; margin-bottom: 8px; }
+  .loop .step .t { font-size: 14.5px; font-weight: 700; color: var(--parch); }
+  .loop .step .d { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .loop .arrow {
+    display: flex; align-items: center; padding: 0 8px;
+    color: var(--gold); font-size: 18px; flex: none;
+  }
+
+  /* ---------- stat tiles ---------- */
+  .tiles {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+  }
+  @media (max-width: 900px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  .tile {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 8px; padding: 18px 18px 15px;
+  }
+  .tile .v {
+    font-family: Georgia, serif; font-size: 30px; color: var(--gold);
+    line-height: 1.1; font-variant-numeric: tabular-nums;
+  }
+  .tile .v small { font-size: 16px; color: var(--gold-dim); }
+  .tile .l { font-size: 13.5px; color: var(--parch); margin-top: 6px; font-weight: 600; }
+  .tile .c { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+
+  /* ---------- vm architecture ---------- */
+  .arch { min-width: 720px; }
+  .arch .row { display: flex; gap: 14px; justify-content: center; }
+  .arch .node {
+    background: var(--panel2); border: 1px solid var(--line);
+    border-radius: 8px; padding: 14px 18px; text-align: center; flex: 1;
+  }
+  .arch .node.gate { max-width: 420px; border-style: dashed; background: var(--panel); }
+  .arch .node .name { font-weight: 700; color: var(--parch); font-size: 15px; }
+  .arch .node .ip { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--gold); }
+  .arch .node .role { font-size: 12.5px; color: var(--muted); margin-top: 4px; line-height: 1.55; }
+  .arch .node.hl { border-color: var(--gold-dim); box-shadow: 0 0 0 1px #d4a84722 inset; }
+  .arch .down { text-align: center; color: var(--gold); padding: 4px 0; font-size: 16px; }
+  .arch .split { display: flex; justify-content: center; gap: 120px; color: var(--gold); padding: 4px 0; font-size: 16px; }
+  .arch .lbl { font-size: 11px; color: var(--muted); }
+
+  .stack { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px; }
+  @media (max-width: 820px) { .stack { grid-template-columns: 1fr; } }
+  .stack .panel { padding: 16px 18px; }
+  .stack h4 { margin: 0 0 8px; font-size: 14.5px; color: var(--gold); }
+  .stack ul { margin: 0; padding-left: 18px; font-size: 13px; color: var(--ink); }
+  .stack li { margin: 3px 0; }
+  .stack li b { color: var(--parch); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 640px; }
+  th {
+    text-align: left; color: var(--gold); font-weight: 600;
+    border-bottom: 1px solid var(--gold-dim);
+    padding: 8px 12px; white-space: nowrap; font-size: 13px;
+  }
+  td { border-bottom: 1px solid var(--line); padding: 9px 12px; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td .muted, .muted { color: var(--muted); }
+  .chip {
+    display: inline-block; font-size: 12px; padding: 1px 9px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--bg2); color: var(--parch);
+    margin: 1px 3px 1px 0; white-space: nowrap;
+  }
+  .chip.gold { border-color: var(--gold-dim); color: var(--gold); }
+  code {
+    font-family: ui-monospace, Consolas, "Courier New", monospace;
+    font-size: .88em; background: #0e0e1c; border: 1px solid var(--line);
+    padding: 1px 6px; border-radius: 4px; color: #cbd5a0;
+  }
+
+  /* ---------- tier badges ---------- */
+  .tier { display: inline-block; width: 26px; height: 26px; line-height: 26px; text-align: center;
+    border-radius: 6px; font-weight: 700; font-size: 13px; color: #131322; }
+  .tier.s { background: var(--gold); } .tier.a { background: #c8c8d4; }
+  .tier.b { background: #b0885e; } .tier.c { background: #8a8f7a; } .tier.d { background: #6e6a75; color:#e8e8e8; }
+
+  /* ---------- rarity chart ---------- */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; margin: 4px 0 14px; color: var(--ink); }
+  .legend .k { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+  .sw.n { background: var(--n); } .sw.r { background: var(--r); } .sw.sr { background: var(--sr); }
+  .sw.ssr { background: var(--ssr); }
+  .sw.ur, .seg.ur { background: linear-gradient(120deg, #e0c26e, #7fd0c9 45%, #b98fe0 80%); }
+  .rchart { min-width: 640px; }
+  .rrow { display: flex; align-items: center; gap: 12px; margin: 5px 0; }
+  .rrow .rl { flex: none; width: 84px; text-align: right; font-size: 12px; color: var(--muted);
+    font-variant-numeric: tabular-nums; }
+  .rbar { flex: 1; display: flex; height: 24px; border-radius: 4px; overflow: hidden; background: var(--bg2); }
+  .seg { height: 100%; display: flex; align-items: center; justify-content: center;
+    font-size: 10.5px; color: #10101d; font-weight: 700; }
+  .seg.n { background: var(--n); } .seg.r { background: var(--r); }
+  .seg.sr { background: var(--sr); } .seg.ssr { background: var(--ssr); }
+  .note { font-size: 12.5px; color: var(--muted); margin-top: 12px; }
+
+  .borders { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .bcard {
+    flex: 1; min-width: 150px; text-align: center; padding: 12px 8px 10px;
+    border-radius: 8px; background: var(--panel2); border: 2px solid; font-size: 13px;
+  }
+  .bcard .rn { font-weight: 800; font-size: 16px; }
+  .bcard .bn { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+  /* ---------- pipeline ---------- */
+  .pipe { counter-reset: st; min-width: 0; }
+  .pstep {
+    display: flex; gap: 16px; padding: 14px 0; border-bottom: 1px dashed var(--line);
+  }
+  .pstep:last-child { border-bottom: none; }
+  .pstep .num {
+    counter-increment: st; flex: none; width: 34px; height: 34px; border-radius: 50%;
+    background: var(--bg2); border: 1px solid var(--gold-dim); color: var(--gold);
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+    font-family: Georgia, serif;
+  }
+  .pstep .num::before { content: counter(st); }
+  .pstep .pt { font-weight: 700; color: var(--parch); font-size: 14.5px; }
+  .pstep .pd { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .duo { grid-template-columns: 1fr; } }
+  .duo .panel h4 { margin: 0 0 6px; font-size: 15px; }
+  .duo .panel.local h4 { color: var(--green); }
+  .duo .panel.cloud h4 { color: var(--blue); }
+  .duo ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  .duo li { margin: 4px 0; }
+  .fallback {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    font-size: 13.5px; margin-top: 16px;
+  }
+  .fallback .f {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 13px; color: var(--parch);
+  }
+  .fallback .fa { color: var(--red); }
+
+  /* ---------- dims grid ---------- */
+  .dims { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 900px) { .dims { grid-template-columns: repeat(2, 1fr); } }
+  .dim { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 13px 15px; }
+  .dim .dv { font-family: Georgia, serif; font-size: 22px; color: var(--gold); }
+  .dim .dl { font-size: 13px; color: var(--parch); font-weight: 600; }
+  .dim .dc { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+
+  /* ---------- painters ---------- */
+  .painters { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 760px) { .painters { grid-template-columns: 1fr; } }
+  .painter { border-radius: 8px; padding: 20px 22px; border: 1px solid var(--line); background: var(--panel); }
+  .painter.court { border-color: #5b8dd966; }
+  .painter.guild { border-color: #7fb06966; }
+  .painter .who { font-size: 17px; font-weight: 700; color: var(--parch); }
+  .painter .tag { font-size: 12px; margin-left: 8px; padding: 1px 9px; border-radius: 999px; }
+  .painter.court .tag { background: #5b8dd922; color: var(--blue); border: 1px solid #5b8dd955; }
+  .painter.guild .tag { background: #7fb06922; color: var(--green); border: 1px solid #7fb06955; }
+  .painter p { font-size: 13.5px; color: var(--muted); margin: 8px 0 0; }
+  .painter .spec { font-size: 12.5px; margin-top: 10px; color: var(--ink); }
+
+  /* ---------- timeline ---------- */
+  .timeline { border-left: 2px solid var(--line); margin-left: 8px; padding-left: 24px; }
+  .tl { position: relative; padding: 2px 0 22px; }
+  .tl:last-child { padding-bottom: 4px; }
+  .tl::before {
+    content: ""; position: absolute; left: -30px; top: 9px; width: 10px; height: 10px;
+    border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 3px #d4a84733;
+  }
+  .tl .date { font-size: 12px; color: var(--gold); letter-spacing: .05em; font-variant-numeric: tabular-nums; }
+  .tl .tt { font-weight: 700; color: var(--parch); font-size: 15px; }
+  .tl .td { font-size: 13px; color: var(--muted); margin-top: 2px; max-width: 720px; }
+
+  footer {
+    border-top: 1px solid var(--line); margin-top: 70px; padding-top: 22px;
+    font-size: 12.5px; color: var(--muted); text-align: center; line-height: 1.9;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="kicker">教育部教學實踐研究計畫</span>
+  <h1>Scholaverse<span class="accent"> ⚔</span></h1>
+  <div class="sub">從學習評分到角色養成：生成式 AI 支持下的遊戲化教學實踐<br>
+  輔仁大學「人工智慧概論」課程配套教學平台</div>
+  <div class="meta">
+    <span>🌐 <b>app.scholaverse.cc</b></span>
+    <span>📦 GitHub：<a href="https://github.com/Chihuah/scholaverse_web-server_intro-ai">web-server</a> ・ <a href="https://github.com/Chihuah/scholaverse_ai-worker_intro-ai">ai-worker</a> ・ <a href="https://github.com/Chihuah/scholaverse_db-storage_intro-ai">db-storage</a></span>
+    <span>👥 修課學生約 <b>50 人</b></span>
+    <span>🔐 Cloudflare Zero Trust 認證</span>
+  </div>
+</header>
+
+<section>
+  <h2>核心循環：把成績變成一張會成長的卡牌</h2>
+  <p class="lede">平台的核心不是「把資料拿去生圖」，而是把抽象的學習歷程轉譯成可感知的 RPG 成長敘事——學生每一次預習、測驗與作業，都會反映在自己專屬角色卡牌的種族、職業、裝備與稀有度上。</p>
+  <div class="scrollx"><div class="loop">
+    <div class="step"><span class="ico">📊</span><span class="t">學習表現數據</span><div class="d">預習・隨堂測驗・作業<br>TronClass 完成度</div></div>
+    <div class="arrow">➜</div>
+    <div class="step"><span class="ico">⚖️</span><span class="t">評分轉換規則</span><div class="d">S/A/B/C/D 五級分級<br>決定屬性可選範圍</div></div>
+    <div class="arrow">➜</div>
+    <div class="step"><span class="ico">🧝</span><span class="t">RPG 角色屬性</span><div class="d">種族・職業・裝備・武器<br>背景・表情 共 10 維度</div></div>
+    <div class="arrow">➜</div>
+    <div class="step"><span class="ico">🎨</span><span class="t">AI 生成卡牌</span><div class="d">LLM 導演 + 文生圖<br>本地 SD / 雲端 gpt-image-2</div></div>
+    <div class="arrow">➜</div>
+    <div class="step"><span class="ico">🏆</span><span class="t">成長軌跡</span><div class="d">卡牌收藏・角色大廳<br>銅邊農夫 → 稜彩大法師</div></div>
+  </div></div>
+</section>
+
+<section>
+  <h2>關鍵數字</h2>
+  <div class="tiles">
+    <div class="tile"><div class="v">3</div><div class="l">台虛擬機</div><div class="c">web-server／ai-worker（RTX 5080）／db-storage 分工協作</div></div>
+    <div class="tile"><div class="v">5<small>+1</small></div><div class="l">學習單元</div><div class="c">每單元解鎖一組角色屬性，unit_6 為自主學習</div></div>
+    <div class="tile"><div class="v">10</div><div class="l">卡牌屬性維度</div><div class="c">種族、性別、職業、體型、裝備、武器品質／類型、背景、表情、姿勢</div></div>
+    <div class="tile"><div class="v">LV 1–100</div><div class="l">卡牌等級</div><div class="c">六單元學習 EXP 平均值，EXP＝預習20%＋完成度40%＋測驗40%</div></div>
+    <div class="tile"><div class="v">5</div><div class="l">稀有度階級</div><div class="c">N／R／SR／SSR／UR，依等級分段機率抽選</div></div>
+    <div class="tile"><div class="v">880×1280</div><div class="l">卡圖解析度</div><div class="c">直式卡牌 PNG；縮圖 220×320（Pillow LANCZOS）</div></div>
+    <div class="tile"><div class="v">$0.039</div><div class="l">雲端單張成本</div><div class="c">gpt-image-2 medium ≈ NT$1.2／張，$20 約可產 500 張</div></div>
+    <div class="tile"><div class="v">14</div><div class="l">成就種類</div><div class="c">早鳥註冊 +30、問卷 3×20、章節完成／前測各 5×10 代幣</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>三 VM 架構</h2>
+  <p class="lede">職責嚴格分離：web-server 不生成 prompt、不儲存圖片；圖片由 ai-worker 直接上傳 db-storage，web-server 只保存 URL。所有 VM IP 透過環境變數配置，認證完全交給 Cloudflare Zero Trust。</p>
+  <div class="scrollx"><div class="arch">
+    <div class="row"><div class="node gate"><div class="name">使用者（學生 / 教師 / 管理者）</div><div class="role">Gmail 登入 → Cloudflare Zero Trust → 讀取 <code>cf-access-authenticated-user-email</code></div></div></div>
+    <div class="down">▼</div>
+    <div class="row"><div class="node hl" style="max-width:460px">
+      <div class="name">🏰 vm-web-server</div><div class="ip">192.168.60.111</div>
+      <div class="role">Web UI＋API＋業務中樞・SQLite・學生／管理雙介面</div>
+    </div></div>
+    <div class="split"><span>▼ <span class="lbl">生圖請求／callback</span></span><span>▼ <span class="lbl">讀取圖片</span></span></div>
+    <div class="row">
+      <div class="node"><div class="name">⚡ vm-ai-worker</div><div class="ip">192.168.60.110・RTX 5080</div>
+        <div class="role">LLM prompt 導演＋文生圖<br>Ollama／sd-cli／gpt-image-2<br>單 GPU 佇列，一次一張</div></div>
+      <div class="node"><div class="name">📚 vm-db-storage</div><div class="ip">192.168.60.112</div>
+        <div class="role">卡圖檔案＋生成 metadata<br>SQLite WAL・IP 白名單<br>PNG magic number 驗證</div></div>
+    </div>
+    <div class="down"><span class="lbl">ai-worker 生成完成後直接上傳 db-storage ➜</span></div>
+  </div></div>
+
+  <div class="stack">
+    <div class="panel"><h4>🏰 vm-web-server</h4><ul>
+      <li><b>FastAPI</b> + Jinja2 + HTMX + Tailwind</li>
+      <li>SQLite + SQLAlchemy（async）</li>
+      <li>套件管理：<b>uv</b></li>
+      <li>學生端 12+ 路由／管理端 11 頁</li>
+      <li>16-bit 像素奇幻 RPG 介面（zh-TW）</li>
+    </ul></div>
+    <div class="panel"><h4>⚡ vm-ai-worker</h4><ul>
+      <li><b>Ollama</b> qwen2.5-14b（prompt 生成）</li>
+      <li><b>sd-cli</b> + Z-Image-Turbo（Q8_0 GGUF）</li>
+      <li>雲端：OpenAI <b>gpt-image-2</b>（generate／edit）</li>
+      <li>asyncio.Queue(50)・job timeout 600s</li>
+      <li>Conda 環境（CUDA 相依）</li>
+    </ul></div>
+    <div class="panel"><h4>📚 vm-db-storage</h4><ul>
+      <li>FastAPI + aiosqlite（WAL，直接 SQL 無 ORM）</li>
+      <li><code>images</code>＋<code>generation_metadata</code> 兩張表</li>
+      <li>上傳僅限 ai-worker、讀取僅限內網兩台 VM</li>
+      <li>路徑防穿越・冪等覆寫（INSERT OR REPLACE）</li>
+      <li>雲端 metadata 7 欄位（backend、fallback…）</li>
+    </ul></div>
+  </div>
+</section>
+
+<section>
+  <h2>六個單元，六段養成</h2>
+  <p class="lede">每個學習單元對應課程的一個 AI 主題，也對應角色的一組屬性。單元成績越好，可選的屬性選項越稀有華麗。</p>
+  <div class="panel scrollx"><table>
+    <thead><tr><th>單元</th><th>課程主題</th><th>週次</th><th>解鎖屬性</th><th>選項舉例（S 級 → D 級）</th></tr></thead>
+    <tbody>
+      <tr><td><b>unit_1</b></td><td>先備知識簡介</td><td class="muted">1–3</td><td><span class="chip gold">種族</span><span class="chip">性別</span></td><td>龍族・精靈 → 植物・史萊姆</td></tr>
+      <tr><td><b>unit_2</b></td><td>多層感知器 MLP</td><td class="muted">4–6</td><td><span class="chip gold">職業</span><span class="chip">體型</span></td><td>大法師・聖騎士 → 農夫</td></tr>
+      <tr><td><b>unit_3</b></td><td>卷積神經網路 CNN</td><td class="muted">7–9</td><td><span class="chip gold">服飾裝備</span></td><td>傳說級華麗 → 破損級破爛</td></tr>
+      <tr><td><b>unit_4</b></td><td>循環神經網路 RNN</td><td class="muted">10–12</td><td><span class="chip gold">武器品質</span><span class="chip">武器類型</span></td><td>神器級全類型 → 木棍／石頭</td></tr>
+      <tr><td><b>unit_5</b></td><td>深度學習進階技術</td><td class="muted">13–16</td><td><span class="chip gold">背景場景</span></td><td>皇宮王座・天空之城 → 破敗廢墟</td></tr>
+      <tr><td><b>unit_6</b></td><td>自主學習</td><td class="muted">17–18</td><td><span class="chip gold">表情</span><span class="chip">姿勢</span></td><td>王者風範・衝鋒 → 疲憊・蹲坐，另可選「預設（隨機生成）」<br><span class="muted">完成度＝8 份作業加權平均（總權重 55）</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>評分分級與屬性解鎖</h3>
+  <div class="panel scrollx"><table>
+    <thead><tr><th>等第</th><th>學習 EXP 區間</th><th>規則</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tier s">S</span></td><td>90–100</td><td rowspan="5">單元 EXP＝預習×0.2＋完成度×0.4＋測驗×0.4。等第採「<b>向下包含</b>」：S 級學生可選 S 到 D 的全部選項，等第越高選擇越豐富。規則存於 <code>attribute_rules</code> 表，教師可在 /admin/rules 即時調整；unit_4 武器另依職業親和過濾（法師 → 法杖／魔法書）。</td></tr>
+      <tr><td><span class="tier a">A</span></td><td>80–89</td></tr>
+      <tr><td><span class="tier b">B</span></td><td>60–79</td></tr>
+      <tr><td><span class="tier c">C</span></td><td>40–59</td></tr>
+      <tr><td><span class="tier d">D</span></td><td>0–39</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>稀有度：等級越高，傳說越近</h2>
+  <p class="lede">卡牌等級（LV 1–100）＝六單元 EXP 總和 ÷ 6。抽卡稀有度依等級每 10 級一個機率段：前期以 N／R 為主避免通膨，中期 SR 成為主要獎勵，尾聲 SSR／UR 登場。</p>
+  <div class="panel">
+    <div class="legend">
+      <span class="k"><span class="sw n"></span>N 普通</span>
+      <span class="k"><span class="sw r"></span>R 稀有</span>
+      <span class="k"><span class="sw sr"></span>SR 超稀有</span>
+      <span class="k"><span class="sw ssr"></span>SSR 傳說</span>
+      <span class="k"><span class="sw ur"></span>UR 究極</span>
+    </div>
+    <div class="scrollx"><div class="rchart">
+      <div class="rrow"><span class="rl">LV 1–10</span><div class="rbar"><div class="seg n" style="width:80%">80</div><div class="seg r" style="width:18%">18</div><div class="seg sr" style="width:2%"></div></div></div>
+      <div class="rrow"><span class="rl">LV 11–20</span><div class="rbar"><div class="seg n" style="width:70%">70</div><div class="seg r" style="width:25%">25</div><div class="seg sr" style="width:5%"></div></div></div>
+      <div class="rrow"><span class="rl">LV 21–30</span><div class="rbar"><div class="seg n" style="width:58%">58</div><div class="seg r" style="width:30%">30</div><div class="seg sr" style="width:10%">10</div><div class="seg ssr" style="width:2%"></div></div></div>
+      <div class="rrow"><span class="rl">LV 31–40</span><div class="rbar"><div class="seg n" style="width:46%">46</div><div class="seg r" style="width:36%">36</div><div class="seg sr" style="width:15%">15</div><div class="seg ssr" style="width:3%"></div></div></div>
+      <div class="rrow"><span class="rl">LV 41–50</span><div class="rbar"><div class="seg n" style="width:34%">34</div><div class="seg r" style="width:36%">36</div><div class="seg sr" style="width:22%">22</div><div class="seg ssr" style="width:7%"></div><div class="seg ur" style="width:1%"></div></div></div>
+      <div class="rrow"><span class="rl">LV 51–60</span><div class="rbar"><div class="seg n" style="width:22%">22</div><div class="seg r" style="width:32%">32</div><div class="seg sr" style="width:28%">28</div><div class="seg ssr" style="width:14%">14</div><div class="seg ur" style="width:4%"></div></div></div>
+      <div class="rrow"><span class="rl">LV 61–70</span><div class="rbar"><div class="seg n" style="width:14%">14</div><div class="seg r" style="width:26%">26</div><div class="seg sr" style="width:32%">32</div><div class="seg ssr" style="width:22%">22</div><div class="seg ur" style="width:6%"></div></div></div>
+      <div class="rrow"><span class="rl">LV 71–80</span><div class="rbar"><div class="seg n" style="width:10%">10</div><div class="seg r" style="width:20%">20</div><div class="seg sr" style="width:34%">34</div><div class="seg ssr" style="width:26%">26</div><div class="seg ur" style="width:10%">10</div></div></div>
+      <div class="rrow"><span class="rl">LV 81–90</span><div class="rbar"><div class="seg n" style="width:5%"></div><div class="seg r" style="width:14%">14</div><div class="seg sr" style="width:28%">28</div><div class="seg ssr" style="width:36%">36</div><div class="seg ur" style="width:17%">17</div></div></div>
+      <div class="rrow"><span class="rl">LV 91–100</span><div class="rbar"><div class="seg n" style="width:2%"></div><div class="seg r" style="width:10%">10</div><div class="seg sr" style="width:22%">22</div><div class="seg ssr" style="width:40%">40</div><div class="seg ur" style="width:26%">26</div></div></div>
+    </div></div>
+    <div class="note">數值為抽中機率（%），出自 <code>scoring.py</code> 的 RARITY_TABLE。卡牌邊框由稀有度直接決定：</div>
+    <div class="borders">
+      <div class="bcard" style="border-color:#b0885e"><div class="rn" style="color:#b0885e">N</div><div class="bn">青銅邊框 bronze</div></div>
+      <div class="bcard" style="border-color:#9aa7b8"><div class="rn" style="color:#9aa7b8">R</div><div class="bn">鋼鐵邊框 steel</div></div>
+      <div class="bcard" style="border-color:#c9c9d6"><div class="rn" style="color:#c9c9d6">SR</div><div class="bn">白銀邊框 silver</div></div>
+      <div class="bcard" style="border-color:#d4a847"><div class="rn" style="color:#d4a847">SSR</div><div class="bn">黃金邊框 gold</div></div>
+      <div class="bcard" style="border-color:#7fd0c9"><div class="rn" style="background:linear-gradient(120deg,#e0c26e,#7fd0c9 45%,#b98fe0 80%);-webkit-background-clip:text;background-clip:text;color:transparent">UR</div><div class="bn">稜彩邊框 prismatic</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>卡牌生成管線：五步驟接力</h2>
+  <p class="lede">學生按下生成後，web-server 把角色配置＋學習數據交給 ai-worker，單 GPU 佇列一次處理一張。第一張卡免費，之後重新生成扣 5 代幣（扣款與建卡原子執行，提交失敗自動退款）。</p>
+  <div class="panel pipe">
+    <div class="pstep"><div class="num"></div><div><div class="pt">Prompt 導演</div><div class="pd">本地路徑：Ollama <code>qwen2.5-14b</code> 將結構化規格改寫為連貫英文 prompt。雲端路徑：<code>prompt_builder_cloud_v2</code> 直出結構化 prompt，跳過 LLM 改寫。</div></div></div>
+    <div class="pstep"><div class="num"></div><div><div class="pt">卸載 LLM 釋放 VRAM</div><div class="pd">僅本地路徑：<code>keep_alive=0</code> 卸載 qwen2.5-14b（佔約 70% GPU 記憶體），否則 sd-cli 會 CUDA OOM。</div></div></div>
+    <div class="pstep"><div class="num"></div><div><div class="pt">文生圖</div><div class="pd">本地：sd-cli + Z-Image-Turbo（Q8_0），880×1280、steps=10、cfg=1.0，LoRA 四選一隨機。雲端：gpt-image-2 <code>generate</code>（全新生成）或 <code>edit</code>（沿用錨點卡保持角色一致性）。</div></div></div>
+    <div class="pstep"><div class="num"></div><div><div class="pt">縮圖</div><div class="pd">Pillow LANCZOS 產生 220×320 縮圖，供儀表板與角色大廳快速載入。</div></div></div>
+    <div class="pstep"><div class="num"></div><div><div class="pt">上傳＋回報</div><div class="pd">原圖＋縮圖上傳 db-storage（附完整生成 metadata），callback 通知 web-server 更新卡牌狀態。上傳失敗重試 3 次後降級本機暫存。</div></div></div>
+  </div>
+
+  <h3>雙後端與三層 Fallback</h3>
+  <div class="duo">
+    <div class="panel local"><h4>🖥️ 本地後端（local）</h4><ul>
+      <li>Z-Image-Turbo Q8_0 GGUF＋FLUX VAE</li>
+      <li>LoRA 隨機：moode_fantasy／Z-Art-3／Desimulate／無</li>
+      <li>零邊際成本，單張數分鐘（timeout 10 分鐘）</li>
+      <li>prompt 尾端固定加可讀性＋負面清單 block</li>
+    </ul></div>
+    <div class="panel cloud"><h4>☁️ 雲端後端（cloud）</h4><ul>
+      <li>gpt-image-2，quality=medium，b64 回傳</li>
+      <li>image edit：Preserve（臉／髮／種族／體型鎖定）＋ Change（風格／裝備／構圖求變）雙區塊 prompt</li>
+      <li>單張約 $0.039（edit $0.049、high $0.102）</li>
+      <li>圖內直接渲染暱稱、LV 徽章、稀有度字母三塊文字</li>
+    </ul></div>
+  </div>
+  <div class="fallback">
+    <span class="muted">失敗自動降級：</span>
+    <span class="f">☁️ cloud edit</span><span class="fa">✕ ➜</span>
+    <span class="f">☁️ cloud generate</span><span class="fa">✕ ➜</span>
+    <span class="f">🖥️ local SD</span>
+    <span class="muted">（fallback 原因完整記錄於 metadata 的 <code>cloud_error</code>）</span>
+  </div>
+</section>
+
+<section>
+  <h2>Prompt 導演系統：讓每張卡都不一樣</h2>
+  <p class="lede">生圖 prompt 不是一句話，而是一套「角色硬事實＋畫面導演規格」的組合系統：以學習數據的雜湊為種子做決定性抽選，同一組輸入永遠可重現，不同學生則風格各異。</p>
+  <div class="dims">
+    <div class="dim"><div class="dv">9</div><div class="dl">種族</div><div class="dc">各附 mandatory／forbidden 視覺鐵則，防止 AI 畫成普通人類</div></div>
+    <div class="dim"><div class="dv">11</div><div class="dl">職業</div><div class="dc">映射為 6 種戰鬥風格（施法／守護近戰／敏捷遠程…）</div></div>
+    <div class="dim"><div class="dv">5</div><div class="dl">鏡頭原型</div><div class="dc">hero_portrait／guardian_stance／spellcasting…依職業×解鎖階段×稀有度加權</div></div>
+    <div class="dim"><div class="dv">6×6</div><div class="dl">相機維度</div><div class="dc">朝向 6 種 × 高度 6 種正交抽選，共 36 種構圖組合</div></div>
+    <div class="dim"><div class="dv">7</div><div class="dl">藝術風格</div><div class="dc">油畫／賽璐璐動畫／水彩繪本／泛光水晶／JRPG 任務卡…等權重</div></div>
+    <div class="dim"><div class="dv">12</div><div class="dl">武器類型</div><div class="dc">長劍到石頭；未解鎖職業時強制空手、初階職業給樸素起始武器</div></div>
+    <div class="dim"><div class="dv">10</div><div class="dl">背景場景</div><div class="dc">皇宮王座、龍巢、天空之城…到破敗廢墟，依 unit_5 成績分級</div></div>
+    <div class="dim"><div class="dv">4</div><div class="dl">等級氛圍</div><div class="dc">LV 1–25 樸素鄉土 → LV 76–100 史詩級電影光影</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>肖像繪製所：把後端切換寫進世界觀</h2>
+  <p class="lede">學生端的 /atelier 頁面用「雙畫師」敘事包裝 image_backend 系統設定——切換生圖後端不是工程術語，而是「今天輪到哪位畫師當值」。非當值畫師會灰階顯示並掛上 OFF DUTY 徽章。</p>
+  <div class="painters">
+    <div class="painter guild">
+      <span class="who">🛠️ 公會畫匠</span><span class="tag">local・本地 SD</span>
+      <p>「城鎮工坊的資深匠人——老練、樸實、忠於模特兒原貌。」</p>
+      <div class="spec">Z-Image-Turbo on RTX 5080・零成本・風格樸實可靠</div>
+    </div>
+    <div class="painter court">
+      <span class="who">👑 宮廷畫師</span><span class="tag">cloud・gpt-image-2</span>
+      <p>「皇都殿堂的新銳天才——精緻、華麗、人物一致性極佳。」</p>
+      <div class="spec">image edit 角色一致性・文字渲染精準・單張約 NT$1.2</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>代幣經濟與管理後台</h2>
+  <div class="duo">
+    <div class="panel"><h4 style="color:var(--gold);margin:0 0 8px">🪙 代幣怎麼賺、怎麼花</h4>
+      <div class="scrollx"><table style="min-width:0">
+        <thead><tr><th>行為</th><th>代幣</th></tr></thead>
+        <tbody>
+          <tr><td>早鳥註冊成就</td><td style="color:var(--green)">+30</td></tr>
+          <tr><td>期初／期中／期末問卷（各）</td><td style="color:var(--green)">+20</td></tr>
+          <tr><td>完成章節學習／前測（各章）</td><td style="color:var(--green)">+10</td></tr>
+          <tr><td>第一張卡牌</td><td class="muted">免費</td></tr>
+          <tr><td>重新生成卡牌</td><td style="color:var(--red)">−5</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note">扣款與建卡原子執行；ai-worker 提交失敗自動退款並記錄交易。同一學生同時只允許一張卡生成中。</div>
+    </div>
+    <div class="panel"><h4 style="color:var(--gold);margin:0 0 8px">🧙 教師／管理者工具</h4>
+      <ul style="margin:0;padding-left:18px;font-size:13.5px">
+        <li><b>TronClass 成績匯入</b>：完成度＋成績列表兩種 .xlsx，preview → commit 兩段式，匯入即冪等發放章節成就</li>
+        <li><b>模擬生圖工作台</b>：SIMULATION 偽學生自由組合 10 維屬性＋LV 滑桿＋seed，測試卡不進學生端；支援雲端錨點卡 image edit</li>
+        <li><b>屬性規則編輯</b>：S–D 各級可選選項即時 CRUD</li>
+        <li><b>生圖歷史</b>：後端／fallback／耗時全記錄，可 CSV 匯出，三層級刪除（隱藏／刪紀錄／連同雲端資產）</li>
+        <li><b>批次發點數</b>：可綁成就 key 冪等發放</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>開發歷程</h2>
+  <div class="timeline">
+    <div class="tl"><div class="date">2026-02-16</div><div class="tt">系統規格書 v0.1.0 定稿</div><div class="td">確立三 VM 架構、5+1 單元屬性映射、代幣經濟與像素 RPG 介面規格。</div></div>
+    <div class="tl"><div class="date">2026-02-24</div><div class="tt">db-storage 規格 v1.0</div><div class="td">SQLite WAL＋IP 白名單＋PNG 驗證的輕量儲存節點設計。</div></div>
+    <div class="tl"><div class="date">2026 春</div><div class="tt">生成管線與管理後台上線</div><div class="td">五步驟生圖管線、TronClass 匯入、SIMULATION 模擬生圖工作台；隨後以 param_sweep 系統性測試 100 張確立生圖參數基準。</div></div>
+    <div class="tl"><div class="date">2026-05-01 ~ 02</div><div class="tt">雲端生圖 Phase 1a／1b</div><div class="td">管理端模擬生圖接入 gpt-image-2 後端切換與自動 fallback（Phase 1a）；加入錨點卡 image edit 角色一致性 UI（Phase 1b，Preserve／Change 雙區塊 prompt），建立單張 $0.039 成本基準。</div></div>
+    <div class="tl"><div class="date">2026-05-03</div><div class="tt">雲端體驗全面整合</div><div class="td">相機維度重構為朝向×高度兩正交軸（6×6＝36 組合）；學生端雙按鈕生圖 UX 與 image_backend 全域切換、屬性衝突 confirm（雲端 keep 模式沿用展示卡角色）；/atelier 肖像繪製所雙畫師世界觀頁面上線。</div></div>
+    <div class="tl"><div class="date">2026-06-12 ~ 13</div><div class="tt">第六章自主學習整合與後台強化</div><div class="td">unit_6 完成度改採 8 份作業加權平均（總權重 55）並修正表情／姿勢選項解鎖；表情／姿勢新增「預設（隨機生成）」選項、修正 C／D 級姿勢重複；移除舊版 CSV 匯入、強化後台「各單元平均成績」面板、新增網站 favicon。</div></div>
+  </div>
+</section>
+
+<footer>
+  Scholaverse 專案總覽 — 依據 <code>docs/system-spec.md</code>、三 VM 規格書、<code>tmp_remote/</code> 實作快照與 web-server repo commit 紀錄彙整（2026-07-04）<br>
+  規格與實作不一致處以實作為準：等級 1–100（規格書 1–10）、重生成 −5 代幣（規格書 −10）、邊框依稀有度（規格書依週次）
+</footer>
+
+</div>
+</body>
+</html>
